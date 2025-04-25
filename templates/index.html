@@ -9,14 +9,12 @@
 <body>
     <div class="container mt-5">
         <h2>Projects</h2>
-        <div class="mb-3">
-            <a href="{{ url_for('add_project') }}" class="btn btn-success">Add New Project</a>
-            {% if session['is_admin'] %}
-                <a href="{{ url_for('add_user') }}" class="btn btn-info">Add New User</a>
-                <a href="{{ url_for('manage_projects') }}" class="btn btn-warning">Manage Projects</a>
-            {% endif %}
-            <a href="{{ url_for('logout') }}" class="btn btn-danger">Logout</a>
-        </div>
+        <a href="{{ url_for('add_project') }}" class="btn btn-primary mb-3">Add New Project</a>
+        <form action="" method="get" class="mb-3">
+            <label for="show_completed">Show Completed Projects:</label>
+            <input type="checkbox" id="show_completed" name="show_completed" {% if show_completed %}checked{% endif %}>
+            <button type="submit" class="btn btn-secondary">Filter</button>
+        </form>
         <table class="table table-striped">
             <thead>
                 <tr>
@@ -24,35 +22,37 @@
                     <th>Client Name</th>
                     <th>Scale</th>
                     <th>Stage</th>
-                    <th>Last Update</th>
+                    <th>Last Update Content</th>
+                    <th>Last Update Date</th>
+                    <th>Owner</th>
                     <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
                 {% for project in projects %}
-                    <tr>
-                        <td>{{ project.name }}</td>
-                        <td>{{ project.client_name }}</td>
-                        <td>{{ project.scale }}</td>
-                        <td>{{ project.stage }}</td>
-                        <td>{{ project.update_date }}</td>
-                        <td>
-                            <a href="{{ url_for('project_details', project_id=project.id) }}" class="btn btn-info">Details</a>
-                            <a href="{{ url_for('update_project', project_id=project.id) }}" class="btn btn-warning">Update Progress</a>
-                        </td>
-                    </tr>
+                <tr>
+                    <td>{{ project.name }}</td>
+                    <td>{{ project.client_name }}</td>
+                    <td>{{ project.scale }}</td>
+                    <td>{{ project.stage }}</td>
+                    <td>{{ project.update_content | default('No updates yet', true) }}</td>
+                    <td>{{ project.update_date }}</td>
+                    <td>{{ project.owner_username }}</td>
+                    <td>
+                        <a href="{{ url_for('update_project', project_id=project.id) }}" class="btn btn-info">Update</a>
+                        <a href="{{ url_for('project_details', project_id=project.id) }}" class="btn btn-success">Details</a>
+                        {% if session['is_admin'] %}
+                            <a href="{{ url_for('edit_project', project_id=project.id) }}" class="btn btn-warning">Edit</a>
+                            <form action="{{ url_for('delete_project', project_id=project.id) }}" method="post" style="display:inline;">
+                                <button type="submit" class="btn btn-danger" onclick="return confirm('Are you sure you want to delete this project?')">Delete</button>
+                            </form>
+                        {% endif %}
+                    </td>
+                </tr>
                 {% endfor %}
             </tbody>
         </table>
-        <div class="form-check form-switch">
-            <input class="form-check-input" type="checkbox" role="switch" id="show_completed_switch" {{ 'checked' if show_completed }}>
-            <label class="form-check-label" for="show_completed_switch">Show Completed Projects</label>
-        </div>
-        <script>
-            document.getElementById('show_completed_switch').addEventListener('change', function() {
-                window.location.href = "{{ url_for('index') }}?show_completed=" + this.checked;
-            });
-        </script>
+        <a href="{{ url_for('logout') }}" class="btn btn-danger">Logout</a>
     </div>
 </body>
 </html>

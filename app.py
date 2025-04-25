@@ -18,7 +18,7 @@ def get_db_connection():
     conn = mysql.connector.connect(**db_config)
     return conn
 
-#
+
 # def insert_admin_user():
 #     conn = get_db_connection()
 #     cursor = conn.cursor(dictionary=True)
@@ -40,14 +40,14 @@ def get_db_connection():
 #     conn.close()
 #
 #
-# # @app.before_first_request
+# @app.before_first_request
 # def initialize_database():
 #     insert_admin_user()
 
 
 @app.route('/')
 def home():
-    if 'username' in session:
+    if 'user_id' in session:
         return redirect(url_for('index'))
     return redirect(url_for('login'))
 
@@ -97,7 +97,7 @@ def index():
     cursor = conn.cursor(dictionary=True)
 
     query = """
-    SELECT p.id, p.name, p.client_name, p.scale, p.stage, pp.update_content, pp.update_date, p.owner
+    SELECT p.id, p.name, p.client_name, p.scale, p.stage, pp.update_content, pp.update_date, u.username AS owner_username
     FROM Projects p
     LEFT JOIN (
         SELECT project_id, MAX(update_date) AS max_date
@@ -105,6 +105,7 @@ def index():
         GROUP BY project_id
     ) latest_updates ON p.id = latest_updates.project_id
     LEFT JOIN Project_progress pp ON p.id = pp.project_id AND latest_updates.max_date = pp.update_date
+    LEFT JOIN Users u ON p.owner = u.id
     WHERE p.is_deleted = FALSE AND (p.stage != 'Completed' OR %s)
     """
 
@@ -229,7 +230,7 @@ def manage_projects():
     cursor = conn.cursor(dictionary=True)
 
     cursor.execute("""
-    SELECT p.id, p.name, p.client_name, p.scale, p.start_date, p.location, p.sales_person, p.stage, pp.update_content, pp.update_date, p.owner
+    SELECT p.id, p.name, p.client_name, p.scale, p.start_date, p.location, p.sales_person, p.stage, pp.update_content, pp.update_date, u.username AS owner_username
     FROM Projects p
     LEFT JOIN (
         SELECT project_id, MAX(update_date) AS max_date
@@ -237,6 +238,7 @@ def manage_projects():
         GROUP BY project_id
     ) latest_updates ON p.id = latest_updates.project_id
     LEFT JOIN Project_progress pp ON p.id = pp.project_id AND latest_updates.max_date = pp.update_date
+    LEFT JOIN Users u ON p.owner = u.id
     WHERE p.is_deleted = FALSE
     ORDER BY p.start_date DESC
     LIMIT 15;
