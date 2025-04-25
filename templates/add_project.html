@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add New Project</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container mt-5">
+        <h2>Add New Project</h2>
+        <form method="post">
+            <div class="form-group">
+                <label for="name">Name:</label>
+                <input type="text" class="form-control" id="name" name="name" required>
+            </div>
+            <div class="form-group">
+                <label for="client_name">Client Name:</label>
+                <input type="text" class="form-control" id="client_name" name="client_name" required>
+            </div>
+            <div class="form-group">
+                <label for="scale">Scale:</label>
+                <input type="number" class="form-control" id="scale" name="scale" required>
+            </div>
+            <div class="form-group">
+                <label for="start_date">Start Date:</label>
+                <input type="date" class="form-control" id="start_date" name="start_date" required>
+            </div>
+            <div class="form-group">
+                <label for="location">Location:</label>
+                <input type="text" class="form-control" id="location" name="location" required>
+            </div>
+            <div class="form-group">
+                <label for="sales_person">Sales Person:</label>
+                <input type="text" class="form-control" id="sales_person" name="sales_person" required>
+            </div>
+            <div class="form-group">
+                <label for="stage">Stage:</label>
+                <select class="form-control" id="stage" name="stage" required>
+                    <option value="Planning">Planning</option>
+                    <option value="Execution">Execution</option>
+                    <option value="Monitoring">Monitoring</option>
+                    <option value="Closing">Closing</option>
+                    <option value="Completed">Completed</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary">Add Project</button>
+            <a href="{{ url_for('manage_projects') }}" class="btn btn-secondary">Cancel</a>
+        </form>
+    </div>
+</body>
+</html>

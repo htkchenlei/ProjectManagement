@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Details</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container mt-5">
+        <h2>Project Details</h2>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Client Name</th>
+                    <th>Scale</th>
+                    <th>Start Date</th>
+                    <th>Location</th>
+                    <th>Sales Person</th>
+                    <th>Stage</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>{{ project_details[0].id }}</td>
+                    <td>{{ project_details[0].name }}</td>
+                    <td>{{ project_details[0].client_name }}</td>
+                    <td>{{ project_details[0].scale }}</td>
+                    <td>{{ project_details[0].start_date }}</td>
+                    <td>{{ project_details[0].location }}</td>
+                    <td>{{ project_details[0].sales_person }}</td>
+                    <td>{{ project_details[0].stage }}</td>
+                </tr>
+            </tbody>
+        </table>
+        <h3>Updates</h3>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Update Content</th>
+                    <th>Update Date</th>
+                    <th>Updated By</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for detail in project_details %}
+                    <tr>
+                        <td>{{ detail.update_content }}</td>
+                        <td>{{ detail.update_date }}</td>
+                        <td>{{ detail.updated_by_username }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <a href="{{ url_for('index') }}" class="btn btn-secondary">Back to Home</a>
+        <a href="{{ url_for('logout') }}" class="btn btn-danger">Logout</a>
+    </div>
+</body>
+</html>

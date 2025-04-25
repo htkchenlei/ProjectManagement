@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Management</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container mt-5">
+        <h2>Projects</h2>
+        <div class="mb-3">
+            <a href="{{ url_for('add_project') }}" class="btn btn-success">Add New Project</a>
+            {% if session['is_admin'] %}
+                <a href="{{ url_for('add_user') }}" class="btn btn-info">Add New User</a>
+                <a href="{{ url_for('manage_projects') }}" class="btn btn-warning">Manage Projects</a>
+            {% endif %}
+            <a href="{{ url_for('logout') }}" class="btn btn-danger">Logout</a>
+        </div>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Client Name</th>
+                    <th>Scale</th>
+                    <th>Stage</th>
+                    <th>Last Update</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for project in projects %}
+                    <tr>
+                        <td>{{ project.name }}</td>
+                        <td>{{ project.client_name }}</td>
+                        <td>{{ project.scale }}</td>
+                        <td>{{ project.stage }}</td>
+                        <td>{{ project.update_date }}</td>
+                        <td>
+                            <a href="{{ url_for('project_details', project_id=project.id) }}" class="btn btn-info">Details</a>
+                            <a href="{{ url_for('update_project', project_id=project.id) }}" class="btn btn-warning">Update Progress</a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" role="switch" id="show_completed_switch" {{ 'checked' if show_completed }}>
+            <label class="form-check-label" for="show_completed_switch">Show Completed Projects</label>
+        </div>
+        <script>
+            document.getElementById('show_completed_switch').addEventListener('change', function() {
+                window.location.href = "{{ url_for('index') }}?show_completed=" + this.checked;
+            });
+        </script>
+    </div>
+</body>
+</html>
