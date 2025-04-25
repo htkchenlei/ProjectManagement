@@ -18,7 +18,7 @@ def get_db_connection():
     conn = mysql.connector.connect(**db_config)
     return conn
 
-
+#
 # def insert_admin_user():
 #     conn = get_db_connection()
 #     cursor = conn.cursor(dictionary=True)
@@ -40,7 +40,7 @@ def get_db_connection():
 #     conn.close()
 #
 #
-# @app.before_first_request
+# # @app.before_first_request
 # def initialize_database():
 #     insert_admin_user()
 
@@ -67,6 +67,7 @@ def login():
         conn.close()
 
         if user and check_password_hash(user['password'], password):
+            session['user_id'] = user['id']
             session['username'] = user['username']
             session['is_admin'] = user['is_admin']
             if remember_me:
@@ -79,6 +80,7 @@ def login():
 
 @app.route('/logout')
 def logout():
+    session.pop('user_id', None)
     session.pop('username', None)
     session.pop('is_admin', False)
     return redirect(url_for('login'))
@@ -86,7 +88,7 @@ def logout():
 
 @app.route('/index')
 def index():
-    if 'username' not in session:
+    if 'user_id' not in session:
         return redirect(url_for('login'))
 
     show_completed = request.args.get('show_completed', 'true') == 'true'
@@ -94,37 +96,25 @@ def index():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
 
-    if session['is_admin']:
-        query = """
-        SELECT p.id, p.name, p.client_name, p.scale, p.stage, pp.update_content, pp.update_date
-        FROM Projects p
-        LEFT JOIN (
-            SELECT project_id, MAX(update_date) AS max_date
-            FROM Project_progress
-            GROUP BY project_id
-        ) latest_updates ON p.id = latest_updates.project_id
-        LEFT JOIN Project_progress pp ON p.id = pp.project_id AND latest_updates.max_date = pp.update_date
-        WHERE p.is_deleted = FALSE AND (p.stage != 'Completed' OR %s)
-        ORDER BY p.start_date DESC
-        LIMIT 15;
-        """
-        params = (show_completed,)
-    else:
-        query = """
-        SELECT p.id, p.name, p.client_name, p.scale, p.stage, pp.update_content, pp.update_date
-        FROM Projects p
-        LEFT JOIN (
-            SELECT project_id, MAX(update_date) AS max_date
-            FROM Project_progress
-            GROUP BY project_id
-        ) latest_updates ON p.id = latest_updates.project_id
-        LEFT JOIN Project_progress pp ON p.id = pp.project_id AND latest_updates.max_date = pp.update_date
-        WHERE p.is_deleted = FALSE AND (p.stage != 'Completed' OR %s)
-        AND p.sales_person = %s
-        ORDER BY p.start_date DESC
-        LIMIT 15;
-        """
-        params = (show_completed, session['username'])
+    query = """
+    SELECT p.id, p.name, p.client_name, p.scale, p.stage, pp.update_content, pp.update_date, p.owner
+    FROM Projects p
+    LEFT JOIN (
+        SELECT project_id, MAX(update_date) AS max_date
+        FROM Project_progress
+        GROUP BY project_id
+    ) latest_updates ON p.id = latest_updates.project_id
+    LEFT JOIN Project_progress pp ON p.id = pp.project_id AND latest_updates.max_date = pp.update_date
+    WHERE p.is_deleted = FALSE AND (p.stage != 'Completed' OR %s)
+    """
+
+    params = [show_completed]
+
+    if not session['is_admin']:
+        query += " AND (p.sales_person = %s OR p.owner = %s)"
+        params.extend([session['user_id'], session['user_id']])
+
+    query += " ORDER BY p.start_date DESC LIMIT 15;"
 
     cursor.execute(query, params)
     projects = cursor.fetchall()
@@ -137,7 +127,7 @@ def index():
 
 @app.route('/add_project', methods=['GET', 'POST'])
 def add_project():
-    if 'username' not in session:
+    if 'user_id' not in session:
         return redirect(url_for('index'))
 
     if request.method == 'POST':
@@ -148,14 +138,15 @@ def add_project():
         location = request.form['location']
         sales_person = request.form['sales_person']
         stage = request.form['stage']
+        owner = request.form['owner']
 
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
 
         cursor.execute("""
-        INSERT INTO Projects (name, client_name, scale, start_date, location, sales_person, stage)
-        VALUES (%s, %s, %s, %s, %s, %s, %s)
-        """, (name, client_name, scale, start_date, location, sales_person, stage))
+        INSERT INTO Projects (name, client_name, scale, start_date, location, sales_person, stage, owner)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        """, (name, client_name, scale, start_date, location, sales_person, stage, owner))
 
         conn.commit()
         cursor.close()
@@ -163,12 +154,20 @@ def add_project():
 
         return redirect(url_for('manage_projects'))
 
-    return render_template('add_project.html')
+    users = []
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT id, username FROM Users")
+    users = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    return render_template('add_project.html', users=users)
 
 
 @app.route('/update_project/<int:project_id>', methods=['GET', 'POST'])
 def update_project(project_id):
-    if 'username' not in session:
+    if 'user_id' not in session:
         return redirect(url_for('login'))
 
     conn = get_db_connection()
@@ -180,7 +179,7 @@ def update_project(project_id):
         cursor.execute("""
         INSERT INTO Project_progress (project_id, update_content, update_date, updated_by)
         VALUES (%s, %s, CURDATE(), %s)
-        """, (project_id, update_content, session['username']))
+        """, (project_id, update_content, session['user_id']))
 
         conn.commit()
         cursor.close()
@@ -199,7 +198,7 @@ def update_project(project_id):
 
 @app.route('/project_details/<int:project_id>')
 def project_details(project_id):
-    if 'username' not in session:
+    if 'user_id' not in session:
         return redirect(url_for('login'))
 
     conn = get_db_connection()
@@ -223,14 +222,14 @@ def project_details(project_id):
 
 @app.route('/manage_projects')
 def manage_projects():
-    if 'username' not in session:
+    if 'user_id' not in session:
         return redirect(url_for('index'))
 
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
 
     cursor.execute("""
-    SELECT p.id, p.name, p.client_name, p.scale, p.start_date, p.location, p.sales_person, p.stage, pp.update_content, pp.update_date
+    SELECT p.id, p.name, p.client_name, p.scale, p.start_date, p.location, p.sales_person, p.stage, pp.update_content, pp.update_date, p.owner
     FROM Projects p
     LEFT JOIN (
         SELECT project_id, MAX(update_date) AS max_date
@@ -253,7 +252,7 @@ def manage_projects():
 
 @app.route('/edit_project/<int:project_id>', methods=['GET', 'POST'])
 def edit_project(project_id):
-    if 'username' not in session or not session['is_admin']:
+    if 'user_id' not in session or not session['is_admin']:
         return redirect(url_for('index'))
 
     conn = get_db_connection()
@@ -267,11 +266,12 @@ def edit_project(project_id):
         location = request.form['location']
         sales_person = request.form['sales_person']
         stage = request.form['stage']
+        owner = request.form['owner']
 
         cursor.execute("""
-        UPDATE Projects SET name = %s, client_name = %s, scale = %s, start_date = %s, location = %s, sales_person = %s, stage = %s
+        UPDATE Projects SET name = %s, client_name = %s, scale = %s, start_date = %s, location = %s, sales_person = %s, stage = %s, owner = %s
         WHERE id = %s
-        """, (name, client_name, scale, start_date, location, sales_person, stage, project_id))
+        """, (name, client_name, scale, start_date, location, sales_person, stage, owner, project_id))
 
         conn.commit()
         cursor.close()
@@ -282,15 +282,19 @@ def edit_project(project_id):
     cursor.execute("SELECT * FROM Projects WHERE id = %s", (project_id,))
     project = cursor.fetchone()
 
+    users = []
+    cursor.execute("SELECT id, username FROM Users")
+    users = cursor.fetchall()
+
     cursor.close()
     conn.close()
 
-    return render_template('edit_project.html', project=project)
+    return render_template('edit_project.html', project=project, users=users)
 
 
 @app.route('/delete_project/<int:project_id>', methods=['POST'])
 def delete_project(project_id):
-    if 'username' not in session or not session['is_admin']:
+    if 'user_id' not in session or not session['is_admin']:
         return redirect(url_for('index'))
 
     conn = get_db_connection()
@@ -307,7 +311,7 @@ def delete_project(project_id):
 
 @app.route('/add_user', methods=['GET', 'POST'])
 def add_user():
-    if 'username' not in session or not session['is_admin']:
+    if 'user_id' not in session or not session['is_admin']:
         return redirect(url_for('index'))
 
     if request.method == 'POST':

@@ -3,56 +3,56 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Add New Project</title>
+    <title>Edit Project</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
 </head>
 <body>
     <div class="container mt-5">
-        <h2>Add New Project</h2>
+        <h2>Edit Project: {{ project.name }}</h2>
         <form method="post">
             <div class="form-group">
                 <label for="name">Name:</label>
-                <input type="text" class="form-control" id="name" name="name" required>
+                <input type="text" class="form-control" id="name" name="name" value="{{ project.name }}" required>
             </div>
             <div class="form-group">
                 <label for="client_name">Client Name:</label>
-                <input type="text" class="form-control" id="client_name" name="client_name" required>
+                <input type="text" class="form-control" id="client_name" name="client_name" value="{{ project.client_name }}" required>
             </div>
             <div class="form-group">
                 <label for="scale">Scale:</label>
-                <input type="number" class="form-control" id="scale" name="scale" required>
+                <input type="number" class="form-control" id="scale" name="scale" value="{{ project.scale }}" required>
             </div>
             <div class="form-group">
                 <label for="start_date">Start Date:</label>
-                <input type="date" class="form-control" id="start_date" name="start_date" required>
+                <input type="date" class="form-control" id="start_date" name="start_date" value="{{ project.start_date }}" required>
             </div>
             <div class="form-group">
                 <label for="location">Location:</label>
-                <input type="text" class="form-control" id="location" name="location" required>
+                <input type="text" class="form-control" id="location" name="location" value="{{ project.location }}" required>
             </div>
             <div class="form-group">
                 <label for="sales_person">Sales Person:</label>
-                <input type="text" class="form-control" id="sales_person" name="sales_person" required>
+                <input type="text" class="form-control" id="sales_person" name="sales_person" value="{{ project.sales_person }}" required>
             </div>
             <div class="form-group">
                 <label for="stage">Stage:</label>
                 <select class="form-control" id="stage" name="stage" required>
-                    <option value="Planning">Planning</option>
-                    <option value="Execution">Execution</option>
-                    <option value="Monitoring">Monitoring</option>
-                    <option value="Closing">Closing</option>
-                    <option value="Completed">Completed</option>
+                    <option value="Planning" {% if project.stage == 'Planning' %}selected{% endif %}>Planning</option>
+                    <option value="Execution" {% if project.stage == 'Execution' %}selected{% endif %}>Execution</option>
+                    <option value="Monitoring" {% if project.stage == 'Monitoring' %}selected{% endif %}>Monitoring</option>
+                    <option value="Closing" {% if project.stage == 'Closing' %}selected{% endif %}>Closing</option>
+                    <option value="Completed" {% if project.stage == 'Completed' %}selected{% endif %}>Completed</option>
                 </select>
             </div>
             <div class="form-group">
                 <label for="owner">Owner:</label>
                 <select class="form-control" id="owner" name="owner" required>
                     {% for user in users %}
-                        <option value="{{ user.id }}">{{ user.username }}</option>
+                        <option value="{{ user.id }}" {% if user.id == project.owner %}selected{% endif %}>{{ user.username }}</option>
                     {% endfor %}
                 </select>
             </div>
-            <button type="submit" class="btn btn-primary">Add Project</button>
+            <button type="submit" class="btn btn-primary">Save Changes</button>
             <a href="{{ url_for('index') }}" class="btn btn-secondary">Back to Home</a>
             <a href="{{ url_for('logout') }}" class="btn btn-danger">Logout</a>
         </form>
