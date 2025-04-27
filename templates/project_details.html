@@ -1,25 +1,25 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-cn">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Project Details</title>
+    <title>项目详情</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
 </head>
 <body>
     <div class="container mt-5">
-        <h2>Project Details</h2>
+        <h2>项目详情</h2>
         <table class="table table-striped">
             <thead>
                 <tr>
                     <th>ID</th>
-                    <th>Name</th>
-                    <th>Client Name</th>
-                    <th>Scale</th>
-                    <th>Start Date</th>
-                    <th>Location</th>
-                    <th>Sales Person</th>
-                    <th>Stage</th>
+                    <th>项目名称</th>
+                    <th>客户名称</th>
+                    <th>项目规模</th>
+                    <th>开始日期</th>
+                    <th>项目地点</th>
+                    <th>销售人员</th>
+                    <th>项目阶段</th>
                 </tr>
             </thead>
             <tbody>
@@ -35,13 +35,13 @@
                 </tr>
             </tbody>
         </table>
-        <h3>Updates</h3>
+        <h3>更新</h3>
         <table class="table table-striped">
             <thead>
                 <tr>
-                    <th>Update Content</th>
-                    <th>Update Date</th>
-                    <th>Updated By</th>
+                    <th>更新内容</th>
+                    <th>更新日期</th>
+                    <th>更新用户</th>
                 </tr>
             </thead>
             <tbody>
@@ -54,8 +54,9 @@
                 {% endfor %}
             </tbody>
         </table>
-        <a href="{{ url_for('index') }}" class="btn btn-secondary">Back to Home</a>
-        <a href="{{ url_for('logout') }}" class="btn btn-danger">Logout</a>
+        <a href="{{ url_for('update_project', project_id=project_details[0].id) }}" class="btn btn-info">更新</a>
+        <a href="{{ url_for('index') }}" class="btn btn-secondary">返回首页</a>
+        <a href="{{ url_for('logout') }}" class="btn btn-danger">登出</a>
     </div>
 </body>
 </html>

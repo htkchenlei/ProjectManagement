@@ -53,11 +53,8 @@
             </div>
             <div class="form-group">
                 <label for="owner">Owner:</label>
-                <select class="form-control" id="owner" name="owner" required>
-                    {% for user in users %}
-                        <option value="{{ user.id }}" {% if user.id == project.owner %}selected{% endif %}>{{ user.username }}</option>
-                    {% endfor %}
-                </select>
+                <input type="hidden" id="owner" name="owner" value="{{ session['user_id'] }}">
+                <input type="text" class="form-control" value="{{ session['username'] }}" disabled>
             </div>
             <button type="submit" class="btn btn-primary">Save Changes</button>
             <a href="{{ url_for('index') }}" class="btn btn-secondary">Back to Home</a>

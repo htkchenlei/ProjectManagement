@@ -1,18 +1,16 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>项目管理系统</title>
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
-</head>
-<body>
+{% extends "base.html" %}
+
+{% block content %}
     <div class="container mt-5">
-        <a href="{{ url_for('add_project') }}" class="btn btn-primary mb-3">创建新项目</a>
-        <form action="" method="get" class="mb-3">
-            <label for="show_completed">显示已完成项目:</label>
-            <input type="checkbox" id="show_completed" name="show_completed" {% if show_completed %}checked{% endif %}>
-            <button type="submit" class="btn btn-secondary">筛选</button>
+        <form action="" method="get" class="mb-3 d-flex justify-content-between">
+            <div>
+                <label for="show_completed">显示已完成项目:</label>
+                <input type="checkbox" id="show_completed" name="show_completed" {% if show_completed %}checked{% endif %}>
+                <button type="submit" class="btn btn-secondary">筛选</button>
+            </div>
+            <div>
+                <a href="{{ url_for('add_project') }}" class="btn btn-primary mb-3">创建项目</a>
+            </div>
         </form>
         <table class="table table-striped">
             <thead>
@@ -38,7 +36,6 @@
                     <td>{{ project.update_date }}</td>
                     <td>{{ project.owner_username }}</td>
                     <td>
-                        <a href="{{ url_for('update_project', project_id=project.id) }}" class="btn btn-info">更新</a>
                         <a href="{{ url_for('project_details', project_id=project.id) }}" class="btn btn-success">详情</a>
                         <a href="{{ url_for('edit_project', project_id=project.id) }}" class="btn btn-warning">编辑</a>
                     </td>
@@ -47,5 +44,4 @@
             </tbody>
         </table>
     </div>
-</body>
-</html>
+{% endblock %}

@@ -104,9 +104,11 @@ def index():
 @app.route('/add_project', methods=['GET', 'POST'])
 def add_project():
     if 'user_id' not in session:
+        print("check user_id")
         return redirect(url_for('index'))
-
+    print("today")
     today = date.today().isoformat()
+    print("after today")
 
     if request.method == 'POST':
         name = request.form['name']
@@ -178,6 +180,7 @@ def update_project(project_id):
 def project_details(project_id):
     if 'user_id' not in session:
         return redirect(url_for('login'))
+    print(project_id)
 
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -194,6 +197,7 @@ def project_details(project_id):
 
     cursor.close()
     conn.close()
+    print("conn closed")
 
     return render_template('project_details.html', project_details=project_details)
 
@@ -231,9 +235,8 @@ def manage_projects():
 
 @app.route('/edit_project/<int:project_id>', methods=['GET', 'POST'])
 def edit_project(project_id):
-    if 'user_id' not in session or not session['is_admin']:
+    if 'user_id' not in session:
         return redirect(url_for('index'))
-
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
 

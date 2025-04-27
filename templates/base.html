@@ -1,30 +1,38 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-cn">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>项目管理系统</title>
+    <title>Project Management</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+       .navbar .navbar-brand {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+        }
+    </style>
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-light bg-light">
-        <a class="navbar-brand" href="#">项目管理系统</a>
-        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="切换导航">
+        <a class="navbar-brand" href="#">Project Management</a>
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
         </button>
-        <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
-            <ul class="navbar-nav">
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ml-auto">
                 {% if 'username' in session %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('index') }}">首页</a>
+                        <a class="nav-link" href="{{ url_for('index') }}">Home</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('logout') }}">登出</a>
+                        <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
                     </li>
                 {% else %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('login') }}">登录</a>
+                        <a class="nav-link" href="{{ url_for('login') }}">Login</a>
                     </li>
                 {% endif %}
             </ul>
