@@ -37,11 +37,18 @@
             <div class="form-group">
                 <label for="stage">Stage:</label>
                 <select class="form-control" id="stage" name="stage" required>
-                    <option value="Planning" {% if project.stage == 'Planning' %}selected{% endif %}>Planning</option>
-                    <option value="Execution" {% if project.stage == 'Execution' %}selected{% endif %}>Execution</option>
-                    <option value="Monitoring" {% if project.stage == 'Monitoring' %}selected{% endif %}>Monitoring</option>
-                    <option value="Closing" {% if project.stage == 'Closing' %}selected{% endif %}>Closing</option>
-                    <option value="Completed" {% if project.stage == 'Completed' %}selected{% endif %}>Completed</option>
+                    <option value="1" {% if project.stage == '1' %}selected{% endif %}>立项中|初步沟通</option>
+                    <option value="2" {% if project.stage == '2' %}selected{% endif %}>立项中|提交立项申请</option>
+                    <option value="3" {% if project.stage == '3' %}selected{% endif %}>已立项|编制解决方案</option>
+                    <option value="4" {% if project.stage == '4' %}selected{% endif %}>已立项|编制设计方案</option>
+                    <option value="5" {% if project.stage == '5' %}selected{% endif %}>已立项|编制招投标参数</option>
+                    <option value="6" {% if project.stage == '6' %}selected{% endif %}>招投标|编制参数</option>
+                    <option value="7" {% if project.stage == '7' %}selected{% endif %}>招投标|已挂网</option>
+                    <option value="8" {% if project.stage == '8' %}selected{% endif %}>招投标|等待结果</option>
+                    <option value="9" {% if project.stage == '9' %}selected{% endif %}>已中标|已公示</option>
+                    <option value="10" {% if project.stage == '10' %}selected{% endif %}>已中标|已获取中标通知书</option>
+                    <option value="11" {% if project.stage == '11' %}selected{% endif %}>已中标|签署合同</option>
+                    <option value="12" {% if project.stage == '12' %}selected{% endif %}>已完成|转入项目实施</option>
                 </select>
             </div>
             <div class="form-group">

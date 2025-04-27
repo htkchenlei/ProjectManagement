@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 import mysql.connector
 from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import date
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'
@@ -17,32 +18,6 @@ db_config = {
 def get_db_connection():
     conn = mysql.connector.connect(**db_config)
     return conn
-
-
-# def insert_admin_user():
-#     conn = get_db_connection()
-#     cursor = conn.cursor(dictionary=True)
-#
-#     # Check if admin user already exists
-#     cursor.execute("SELECT * FROM Users WHERE username = %s", ('admin',))
-#     admin_user = cursor.fetchone()
-#
-#     if not admin_user:
-#         hashed_password = generate_password_hash('admin')
-#         cursor.execute("""
-#         INSERT INTO Users (username, password, is_admin)
-#         VALUES (%s, %s, TRUE)
-#         """, ('admin', hashed_password))
-#
-#         conn.commit()
-#
-#     cursor.close()
-#     conn.close()
-#
-#
-# @app.before_first_request
-# def initialize_database():
-#     insert_admin_user()
 
 
 @app.route('/')
@@ -131,6 +106,8 @@ def add_project():
     if 'user_id' not in session:
         return redirect(url_for('index'))
 
+    today = date.today().isoformat()
+
     if request.method == 'POST':
         name = request.form['name']
         client_name = request.form['client_name']
@@ -153,7 +130,7 @@ def add_project():
         cursor.close()
         conn.close()
 
-        return redirect(url_for('manage_projects'))
+        return redirect(url_for('index'))
 
     users = []
     conn = get_db_connection()
@@ -163,7 +140,7 @@ def add_project():
     cursor.close()
     conn.close()
 
-    return render_template('add_project.html', users=users)
+    return render_template('add_project.html', users=users, today=today)
 
 
 @app.route('/update_project/<int:project_id>', methods=['GET', 'POST'])
@@ -345,6 +322,3 @@ def add_user():
 
 if __name__ == '__main__':
     app.run(debug=True)
-
-
-
