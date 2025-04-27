@@ -1,12 +1,6 @@
-<!DOCTYPE html>
-<html lang="zh-cn">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>项目详情</title>
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
-</head>
-<body>
+{% extends "base.html" %}
+
+{% block content %}
     <div class="container mt-5">
         <h2>项目详情</h2>
         <table class="table table-striped">
@@ -31,11 +25,24 @@
                     <td>{{ project_details[0].start_date }}</td>
                     <td>{{ project_details[0].location }}</td>
                     <td>{{ project_details[0].sales_person }}</td>
-                    <td>{{ project_details[0].stage }}</td>
+                    <td>
+                        {% if project_details[0].stage == '1' %}立项中|初步沟通{% endif %}
+                        {% if project_details[0].stage == '2' %}立项中|提交立项申请{% endif %}
+                        {% if project_details[0].stage == '3' %}已立项|编制解决方案{% endif %}
+                        {% if project_details[0].stage == '4' %}已立项|编制设计方案{% endif %}
+                        {% if project_details[0].stage == '5' %}已立项|编制招投标参数{% endif %}
+                        {% if project_details[0].stage == '6' %}招投标|编制参数{% endif %}
+                        {% if project_details[0].stage == '7' %}招投标|已挂网{% endif %}
+                        {% if project_details[0].stage == '8' %}招投标|等待结果{% endif %}
+                        {% if project_details[0].stage == '9' %}已中标|已公示{% endif %}
+                        {% if project_details[0].stage == '10' %}已中标|已获取中标通知书{% endif %}
+                        {% if project_details[0].stage == '11' %}已中标|签署合同{% endif %}
+                        {% if project_details[0].stage == '12' %}已完成|转入项目实施{% endif %}
+                    </td>
                 </tr>
             </tbody>
         </table>
-        <h3>更新</h3>
+        <h3>更新记录</h3>
         <table class="table table-striped">
             <thead>
                 <tr>
@@ -54,9 +61,8 @@
                 {% endfor %}
             </tbody>
         </table>
-        <a href="{{ url_for('update_project', project_id=project_details[0].id) }}" class="btn btn-info">更新</a>
-        <a href="{{ url_for('index') }}" class="btn btn-secondary">返回首页</a>
-        <a href="{{ url_for('logout') }}" class="btn btn-danger">登出</a>
+        <div class="d-flex justify-content-center">
+            <a href="{{ url_for('update_project', project_id=project_details[0].id) }}" class="btn btn-info">添加更新</a>
+        </div>
     </div>
-</body>
-</html>
+{% endblock %}

@@ -15,6 +15,25 @@ db_config = {
 }
 
 
+def get_stage_name(stage_id):
+    dict = {
+        '1': '立项中|初步沟通',
+        '2': '立项中|提交立项申请',
+        '3': '已立项|编制解决方案',
+        '4': '已立项|编制设计方案',
+        '5': '已立项|编制招投标参数',
+        '6': '招投标|编制参数',
+        '7': '招投标|已挂网',
+        '8': '招投标|等待结果',
+        '9': '已中标|已公示',
+        '10': '已中标|已获取中标通知书',
+        '11': '已中标|签署合同',
+        '12': '已完成|转入项目实施'
+     }
+
+    return dict.get(stage_id, '未知阶段')
+
+
 def get_db_connection():
     conn = mysql.connector.connect(**db_config)
     return conn
@@ -67,6 +86,7 @@ def index():
         return redirect(url_for('login'))
 
     show_completed = request.args.get('show_completed', 'true') == 'true'
+    print(show_completed)
 
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -81,7 +101,7 @@ def index():
     ) latest_updates ON p.id = latest_updates.project_id
     LEFT JOIN Project_progress pp ON p.id = pp.project_id AND latest_updates.max_date = pp.update_date
     LEFT JOIN Users u ON p.owner = u.id
-    WHERE p.is_deleted = FALSE AND (p.stage != 'Completed' OR %s)
+    WHERE p.is_deleted = FALSE AND (p.stage != '12' OR %s)
     """
 
     params = [show_completed]
@@ -90,7 +110,7 @@ def index():
         query += " AND (p.sales_person = %s OR p.owner = %s)"
         params.extend([session['user_id'], session['user_id']])
 
-    query += " ORDER BY p.start_date DESC LIMIT 15;"
+    query += " ORDER BY pp.update_date DESC LIMIT 15;"
 
     cursor.execute(query, params)
     projects = cursor.fetchall()
@@ -156,10 +176,9 @@ def update_project(project_id):
     if request.method == 'POST':
         update_content = request.form['update_content']
 
-        cursor.execute("""
-        INSERT INTO Project_progress (project_id, update_content, update_date, updated_by)
-        VALUES (%s, %s, CURDATE(), %s)
-        """, (project_id, update_content, session['user_id']))
+        cursor.execute("""INSERT INTO Project_progress (project_id, update_content, update_date, updated_by)
+                          VALUES (%s, %s, CURDATE(), %s)""",
+                       (project_id, update_content, session['user_id']))
 
         conn.commit()
         cursor.close()
@@ -167,20 +186,33 @@ def update_project(project_id):
 
         return redirect(url_for('index'))
 
+    # 查询项目的基本信息
     cursor.execute("SELECT * FROM Projects WHERE id = %s", (project_id,))
+
     project = cursor.fetchone()
+    project['stage'] = get_stage_name(project['stage'])
+
+    # 查询项目的更新历史
+    cursor.execute("""
+        SELECT pp.update_content, pp.update_date, u.username
+        FROM Project_progress pp
+        LEFT JOIN Users u ON pp.updated_by = u.id
+        WHERE pp.project_id = %s
+        ORDER BY pp.update_date DESC
+    """, (project_id,))
+    updates = cursor.fetchall()
 
     cursor.close()
     conn.close()
 
-    return render_template('project_update.html', project=project)
+    return render_template('project_update.html', project=project, updates=updates)
+
 
 
 @app.route('/project_details/<int:project_id>')
 def project_details(project_id):
     if 'user_id' not in session:
         return redirect(url_for('login'))
-    print(project_id)
 
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -197,14 +229,13 @@ def project_details(project_id):
 
     cursor.close()
     conn.close()
-    print("conn closed")
 
     return render_template('project_details.html', project_details=project_details)
 
 
 @app.route('/manage_projects')
 def manage_projects():
-    if 'user_id' not in session:
+    if 'user_id' not in session or not session['is_admin']:
         return redirect(url_for('index'))
 
     conn = get_db_connection()
@@ -241,6 +272,7 @@ def edit_project(project_id):
     cursor = conn.cursor(dictionary=True)
 
     if request.method == 'POST':
+        print("in if")
         name = request.form['name']
         client_name = request.form['client_name']
         scale = int(request.form['scale'])

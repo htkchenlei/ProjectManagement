@@ -1,23 +1,46 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Update Project</title>
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
-</head>
-<body>
+{% extends "base.html" %}
+
+{% block content %}
     <div class="container mt-5">
-        <h2>Update Project: {{ project.name }}</h2>
+        <h2>项目更新: {{ project.name }}</h2>
+
+        <!-- 显示项目基本信息 -->
+        <div class="card mb-3">
+            <div class="card-body">
+                <h5 class="card-title">项目基本信息</h5>
+                <p class="card-text"><strong>项目名称:</strong> {{ project.name }}</p>
+                <p class="card-text"><strong>客户名称:</strong> {{ project.client_name }}</p>
+                <p class="card-text"><strong>项目规模:</strong> {{ project.scale }}</p>
+                <p class="card-text"><strong>开始日期:</strong> {{ project.start_date }}</p>
+                <p class="card-text"><strong>项目地点:</strong> {{ project.location }}</p>
+                <p class="card-text"><strong>销售:</strong> {{ project.sales_person }}</p>
+                <p class="card-text"><strong>项目阶段:</strong> {{ project.stage }}</p>
+                </div>
+        </div>
+
+        <!-- 显示以前的更新内容 -->
+        <div class="card mb-3">
+            <div class="card-body">
+                <h5 class="card-title">以前的更新内容</h5>
+                {% if updates %}
+                    {% for update in updates %}
+                        <p class="card-text"><strong>{{ update.update_date }} @ {{ update.username }}:</strong> {{ update.update_content }}</p>
+                    {% endfor %}
+                {% else %}
+                    <p class="card-text">暂无更新内容</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- 更新表单 -->
         <form method="post">
             <div class="form-group">
                 <label for="update_content">Update Content:</label>
                 <textarea class="form-control" id="update_content" name="update_content" rows="3" required></textarea>
             </div>
-            <button type="submit" class="btn btn-primary">Submit Update</button>
-            <a href="{{ url_for('index') }}" class="btn btn-secondary">Back to Home</a>
-            <a href="{{ url_for('logout') }}" class="btn btn-danger">Logout</a>
+            <div class="d-flex justify-content-center">
+                <button type="submit" class="btn btn-primary">提交更新</button>
+            </div>
         </form>
     </div>
-</body>
-</html>
+{% endblock %}
