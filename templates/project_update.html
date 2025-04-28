@@ -21,7 +21,7 @@
         <!-- 显示以前的更新内容 -->
         <div class="card mb-3">
             <div class="card-body">
-                <h5 class="card-title">以前的更新内容</h5>
+                <h5 class="card-title">历史更新</h5>
                 {% if updates %}
                     {% for update in updates %}
                         <p class="card-text"><strong>{{ update.update_date }} @ {{ update.username }}:</strong> {{ update.update_content }}</p>
@@ -35,7 +35,7 @@
         <!-- 更新表单 -->
         <form method="post">
             <div class="form-group">
-                <label for="update_content">Update Content:</label>
+                <label for="update_content">更新内容:</label>
                 <textarea class="form-control" id="update_content" name="update_content" rows="3" required></textarea>
             </div>
             <div class="d-flex justify-content-center">

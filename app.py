@@ -2,6 +2,8 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 import mysql.connector
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import date
+import pandas as pd
+from io import BytesIO
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'
@@ -84,6 +86,10 @@ def logout():
 def index():
     if 'user_id' not in session:
         return redirect(url_for('login'))
+    if session['is_admin']:
+        return redirect(url_for('manage_projects'))
+
+    # print(session['is_admin'])
 
     show_completed = request.args.get('show_completed', 'true') == 'true'
     print(show_completed)
@@ -95,13 +101,16 @@ def index():
     SELECT p.id, p.name, p.client_name, p.scale, p.stage, pp.update_content, pp.update_date, u.username AS owner_username
     FROM Projects p
     LEFT JOIN (
-        SELECT project_id, MAX(update_date) AS max_date
+        SELECT project_id, MAX(update_date) AS max_date, MAX(id) AS max_id
         FROM Project_progress
         GROUP BY project_id
     ) latest_updates ON p.id = latest_updates.project_id
-    LEFT JOIN Project_progress pp ON p.id = pp.project_id AND latest_updates.max_date = pp.update_date
+    LEFT JOIN Project_progress pp ON pp.id = latest_updates.max_id
     LEFT JOIN Users u ON p.owner = u.id
     WHERE p.is_deleted = FALSE AND (p.stage != '12' OR %s)
+    ORDER BY pp.update_date DESC
+    LIMIT 15;
+
     """
 
     params = [show_completed]
@@ -115,6 +124,10 @@ def index():
     cursor.execute(query, params)
     projects = cursor.fetchall()
 
+    for i, project in enumerate(projects, start=1):
+        project['serial_nmber'] = i
+        project['stage'] = get_stage_name(project['stage'])
+
     cursor.close()
     conn.close()
 
@@ -124,11 +137,11 @@ def index():
 @app.route('/add_project', methods=['GET', 'POST'])
 def add_project():
     if 'user_id' not in session:
-        print("check user_id")
+        # print("check user_id")
         return redirect(url_for('index'))
-    print("today")
+    # print("today")
     today = date.today().isoformat()
-    print("after today")
+    # print("after today")
 
     if request.method == 'POST':
         name = request.form['name']
@@ -226,11 +239,22 @@ def project_details(project_id):
     ORDER BY pp.update_date DESC
     """, (project_id,))
     project_details = cursor.fetchall()
+    project_details[0]['stage'] = get_stage_name(project_details[0]['stage'])
+
+    # 查询项目的更新历史
+    cursor.execute("""
+            SELECT pp.update_content, pp.update_date, u.username
+            FROM Project_progress pp
+            LEFT JOIN Users u ON pp.updated_by = u.id
+            WHERE pp.project_id = %s
+            ORDER BY pp.update_date DESC
+        """, (project_id,))
+    updates = cursor.fetchall()
 
     cursor.close()
     conn.close()
 
-    return render_template('project_details.html', project_details=project_details)
+    return render_template('project_details.html', project_details=project_details, updates=updates)
 
 
 @app.route('/manage_projects')
@@ -242,21 +266,24 @@ def manage_projects():
     cursor = conn.cursor(dictionary=True)
 
     cursor.execute("""
-    SELECT p.id, p.name, p.client_name, p.scale, p.start_date, p.location, p.sales_person, p.stage, pp.update_content, pp.update_date, u.username AS owner_username
+    SELECT p.id, p.name, p.client_name, p.scale, p.stage, pp.update_content, pp.update_date, u.username AS owner_username
     FROM Projects p
     LEFT JOIN (
-        SELECT project_id, MAX(update_date) AS max_date
+        SELECT project_id, MAX(update_date) AS max_date, MAX(id) AS max_id
         FROM Project_progress
         GROUP BY project_id
     ) latest_updates ON p.id = latest_updates.project_id
-    LEFT JOIN Project_progress pp ON p.id = pp.project_id AND latest_updates.max_date = pp.update_date
+    LEFT JOIN Project_progress pp ON pp.id = latest_updates.max_id
     LEFT JOIN Users u ON p.owner = u.id
-    WHERE p.is_deleted = FALSE
-    ORDER BY p.start_date DESC
+    WHERE p.is_deleted = FALSE AND (p.stage != '12' OR 1.0)
+    ORDER BY pp.update_date DESC
     LIMIT 15;
     """)
 
     projects = cursor.fetchall()
+    for i, project in enumerate(projects, start=1):
+        project['serial_nmber'] = i
+        project['stage'] = get_stage_name(project['stage'])
 
     cursor.close()
     conn.close()
@@ -272,7 +299,7 @@ def edit_project(project_id):
     cursor = conn.cursor(dictionary=True)
 
     if request.method == 'POST':
-        print("in if")
+        # print("in if")
         name = request.form['name']
         client_name = request.form['client_name']
         scale = int(request.form['scale'])
@@ -353,6 +380,51 @@ def add_user():
         return redirect(url_for('add_user'))
 
     return render_template('add_user.html')
+
+@app.route('/export_projects_to_excel')
+def export_projects_to_excel():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    query = """
+    SELECT p.id, p.name, p.client_name, p.scale, p.stage, pp.update_content, pp.update_date, u.username AS owner_username
+    FROM Projects p
+    LEFT JOIN (
+        SELECT project_id, MAX(update_date) AS max_date
+        FROM Project_progress
+        GROUP BY project_id
+    ) latest_updates ON p.id = latest_updates.project_id
+    LEFT JOIN Project_progress pp ON p.id = pp.project_id AND latest_updates.max_date = pp.update_date
+    LEFT JOIN Users u ON p.owner = u.id
+    WHERE p.is_deleted = FALSE
+    ORDER BY p.start_date DESC
+    """
+
+    cursor.execute(query)
+    projects = cursor.fetchall()
+    for project in projects:
+        project['stage'] = get_stage_name(project['stage'])
+
+    cursor.close()
+    conn.close()
+
+    df = pd.DataFrame(projects)
+    # 添加序号列
+    df.insert(0, '序号', range(1, len(df) + 1))
+
+    output = BytesIO()
+    writer = pd.ExcelWriter(output, engine='xlsxwriter')
+    df.to_excel(writer, sheet_name='Projects', index=False)
+    writer.close()
+    output.seek(0)
+
+    return output.getvalue(), 200, {
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'Content-Disposition': 'attachment; filename=projects.xlsx'
+    }
 
 
 if __name__ == '__main__':

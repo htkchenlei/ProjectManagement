@@ -10,43 +10,34 @@
             </div>
             <div>
                 <a href="{{ url_for('add_project') }}" class="btn btn-primary mb-3">创建项目</a>
+                <a href="{{ url_for('export_projects_to_excel') }}" class="btn btn-dark mb-3">导出项目信息到 Excel</a>
             </div>
         </form>
         <table class="table table-striped" style="table-layout: fixed; width: 100%;">
             <thead>
                 <tr>
-                    <th style="width: 22%; text-align: center;">名称</th>
-                    <th style="width: 13%; text-align: center;">规模</th>
+                    <th style="width: 6%; text-align: center;">序号</th>
+                    <th style="width: 20%; text-align: center;">名称</th>
+                    <th style="width: 12%; text-align: center;">规模</th>
                     <th style="width: 18%; text-align: center;">阶段</th>
                     <th style="width: 20%; text-align: center;">最近更新</th>
                     <th style="width: 12%; text-align: center;">更新日期</th>
-                    <th style="width: 15%; text-align: center;">操作</th>
+                    <th style="width: 17%; text-align: center;">操作</th>
                 </tr>
             </thead>
             <tbody>
                 {% for project in projects %}
                 <tr>
-                    <td style="width: 22%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ project.name }}</td>
-                    <td style="width: 13%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;text-align: center;">{{ project.scale }}</td>
-                    <td style="width: 18%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                        {% if project.stage == '1' %}立项中|初步沟通{% endif %}
-                        {% if project.stage == '2' %}立项中|提交立项申请{% endif %}
-                        {% if project.stage == '3' %}已立项|编制解决方案{% endif %}
-                        {% if project.stage == '4' %}已立项|编制设计方案{% endif %}
-                        {% if project.stage == '5' %}已立项|编制招投标参数{% endif %}
-                        {% if project.stage == '6' %}招投标|编制参数{% endif %}
-                        {% if project.stage == '7' %}招投标|已挂网{% endif %}
-                        {% if project.stage == '8' %}招投标|等待结果{% endif %}
-                        {% if project.stage == '9' %}已中标|已公示{% endif %}
-                        {% if project.stage == '10' %}已中标|已获取中标通知书{% endif %}
-                        {% if project.stage == '11' %}已中标|签署合同{% endif %}
-                        {% if project.stage == '12' %}已完成|转入项目实施{% endif %}
-                    </td>
+                    <td style="width: 6%; text-align: center;">{{ project.serial_nmber }}</td>
+                    <td style="width: 20%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ project.name }}</td>
+                    <td style="width: 12%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;text-align: center;">{{ project.scale }}</td>
+                    <td style="width: 18%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;text-align: center;">{{ project.stage }}</td>
                     <td style="width: 20%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ project.update_content | default('暂无更新', true) }}</td>
                     <td style="width: 12%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;text-align: center;">{{ project.update_date }}</td>
-                    <td style="width: 15%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                    <td style="width: 17%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;text-align: center;">
+                        <a href="{{ url_for('update_project', project_id=project.id) }}" class="btn btn-info">更新</a>
                         <a href="{{ url_for('project_details', project_id=project.id) }}" class="btn btn-success">详情</a>
-                        <a href="{{ url_for('edit_project', project_id=project.id) }}" class="btn btn-warning">编辑</a>
+
                     </td>
                 </tr>
                 {% endfor %}
