@@ -125,7 +125,7 @@ def index():
     projects = cursor.fetchall()
 
     for i, project in enumerate(projects, start=1):
-        project['serial_nmber'] = i
+        project['serial_number'] = i
         project['stage'] = get_stage_name(project['stage'])
 
     cursor.close()
@@ -211,7 +211,7 @@ def update_project(project_id):
         FROM Project_progress pp
         LEFT JOIN Users u ON pp.updated_by = u.id
         WHERE pp.project_id = %s
-        ORDER BY pp.update_date DESC
+        ORDER BY pp.id DESC
     """, (project_id,))
     updates = cursor.fetchall()
 
@@ -247,7 +247,7 @@ def project_details(project_id):
             FROM Project_progress pp
             LEFT JOIN Users u ON pp.updated_by = u.id
             WHERE pp.project_id = %s
-            ORDER BY pp.update_date DESC
+            ORDER BY pp.id DESC
         """, (project_id,))
     updates = cursor.fetchall()
 
@@ -282,7 +282,7 @@ def manage_projects():
 
     projects = cursor.fetchall()
     for i, project in enumerate(projects, start=1):
-        project['serial_nmber'] = i
+        project['serial_number'] = i
         project['stage'] = get_stage_name(project['stage'])
 
     cursor.close()
@@ -299,7 +299,6 @@ def edit_project(project_id):
     cursor = conn.cursor(dictionary=True)
 
     if request.method == 'POST':
-        # print("in if")
         name = request.form['name']
         client_name = request.form['client_name']
         scale = int(request.form['scale'])
@@ -309,10 +308,41 @@ def edit_project(project_id):
         stage = request.form['stage']
         owner = request.form['owner']
 
+        # 获取项目的旧信息
+        cursor.execute("SELECT * FROM Projects WHERE id = %s", (project_id,))
+        old_project = cursor.fetchone()
+
+        # 构建更新内容
+        update_content = []
+        if old_project['name'] != name:
+            update_content.append(f"项目名称从 {old_project['name']} 改为 {name}")
+        if old_project['client_name'] != client_name:
+            update_content.append(f"客户名称从 {old_project['client_name']} 改为 {client_name}")
+        if old_project['scale'] != scale:
+            update_content.append(f"项目规模从 {old_project['scale']} 改为 {scale}")
+        if str(old_project['start_date']) != start_date:
+            update_content.append(f"开始日期从 {old_project['start_date']} 改为 {start_date}")
+        if old_project['location'] != location:
+            update_content.append(f"项目地点从 {old_project['location']} 改为 {location}")
+        if old_project['sales_person'] != sales_person:
+            update_content.append(f"销售从 {old_project['sales_person']} 改为 {sales_person}")
+        if old_project['stage'] != stage:
+            update_content.append(f"项目阶段从 {get_stage_name(old_project['stage'])} 改为 {get_stage_name(stage)}")
+
+        # 将更新内容拼接成字符串
+        update_content_str = "; ".join(update_content)
+
+        # 更新 Projects 表
         cursor.execute("""
         UPDATE Projects SET name = %s, client_name = %s, scale = %s, start_date = %s, location = %s, sales_person = %s, stage = %s, owner = %s
         WHERE id = %s
         """, (name, client_name, scale, start_date, location, sales_person, stage, owner, project_id))
+
+        # 如果有更新内容，插入到 Project_progress 表
+        if update_content_str:
+            cursor.execute("""INSERT INTO Project_progress (project_id, update_content, update_date, updated_by)
+                              VALUES (%s, %s, CURDATE(), %s)""",
+                           (project_id, update_content_str, session['user_id']))
 
         conn.commit()
         cursor.close()
