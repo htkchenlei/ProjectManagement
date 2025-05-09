@@ -457,5 +457,62 @@ def export_projects_to_excel():
     }
 
 
+@app.route('/search_results')
+def search_results():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    search_term = request.args.get('search_term', '').strip()
+    if not search_term:
+        flash('请输入搜索关键词')
+        return redirect(url_for('index'))
+
+    show_completed = request.args.get('show_completed', 'true') == 'true'
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    # 构建搜索查询 (使用LIKE模糊匹配)
+    query = """
+    SELECT p.id, p.name, p.client_name, p.scale, p.stage, pp.update_content, pp.update_date, u.username AS owner_username
+    FROM Projects p
+    LEFT JOIN (
+        SELECT project_id, MAX(update_date) AS max_date, MAX(id) AS max_id
+        FROM Project_progress
+        GROUP BY project_id
+    ) latest_updates ON p.id = latest_updates.project_id
+    LEFT JOIN Project_progress pp ON pp.id = latest_updates.max_id
+    LEFT JOIN Users u ON p.owner = u.id
+    WHERE p.is_deleted = FALSE AND p.name LIKE %s
+    """
+
+    params = [f'%{search_term}%']
+
+    # 如果不显示已完成项目
+    if not show_completed:
+        query += " AND p.stage != '12'"
+
+    # 普通用户只能看到自己的项目
+    if not session['is_admin']:
+        query += " AND (p.sales_person = %s OR p.owner = %s)"
+        params.extend([session['user_id'], session['user_id']])
+
+    query += " ORDER BY pp.update_date DESC"
+
+    cursor.execute(query, params)
+    projects = cursor.fetchall()
+
+    # 处理阶段名称和序号
+    for i, project in enumerate(projects, start=1):
+        project['serial_number'] = i
+        project['stage'] = get_stage_name(project['stage'])
+
+    cursor.close()
+    conn.close()
+
+    return render_template('search_results.html', projects=projects, search_term=search_term,
+                           show_completed=show_completed)
+
+
 if __name__ == '__main__':
     app.run(debug=True)

@@ -2,29 +2,20 @@
 
 {% block content %}
     <div class="container mt-5 mx-auto" style="max-width: 100%;">
-        <div class="d-flex justify-content-between mb-3">
-            <!-- 左侧：筛选控件 -->
-            <div>
-                <label for="show_completed">显示已完成项目:</label>
-                <input type="checkbox" id="show_completed" name="show_completed" {% if show_completed %}checked{% endif %}>
-                <button type="submit" class="btn btn-secondary">筛选</button>
-            </div>
-
-            <!-- 中间：搜索框 -->
-            <div class="input-group" style="width: 30%;">
-                <input type="text" class="form-control" placeholder="搜索项目名称" id="search_term" name="search_term">
-                <div class="input-group-append">
-                    <a href="{{ url_for('search_results') }}" id="search_btn" class="btn btn-primary mb-3">搜索</a>
-                </div>
-            </div>
-
-            <!-- 右侧：创建项目和导出按钮 -->
-            <div>
-                <a href="{{ url_for('add_project') }}" class="btn btn-primary mb-3">创建项目</a>
-                <a href="{{ url_for('export_projects_to_excel') }}" class="btn btn-dark mb-3">导出项目信息到 Excel</a>
+        <h3>搜索结果: "{{ search_term }}"</h3>
+        
+        <!-- 搜索框 (可选，方便用户继续搜索) -->
+        <div class="input-group mb-3" style="width: 30%;">
+            <input type="text" class="form-control" placeholder="搜索项目名称" value="{{ search_term }}" id="search_term" name="search_term">
+            <div class="input-group-append">
+                <a href="{{ url_for('search_results') }}" id="search_btn" class="btn btn-outline-primary">搜索</a>
             </div>
         </div>
-
+        
+        <!-- 显示结果数量 -->
+        <div class="mb-3">找到 {{ projects|length }} 个项目</div>
+        
+        <!-- 项目表格 (与index.html相同) -->
         <table class="table table-striped" style="table-layout: fixed; width: 100%;">
             <thead>
                 <tr>
@@ -55,7 +46,8 @@
             </tbody>
         </table>
     </div>
-
+    
+    <!-- 搜索按钮JavaScript -->
     <script>
         document.getElementById('search_btn').addEventListener('click', function(e) {
             e.preventDefault();
