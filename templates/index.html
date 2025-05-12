@@ -2,29 +2,36 @@
 
 {% block content %}
     <div class="container mt-5 mx-auto" style="max-width: 100%;">
-        <div class="d-flex justify-content-between mb-3">
-            <!-- 左侧：筛选控件 -->
-            <div>
-                <label for="show_completed">显示已完成项目:</label>
-                <input type="checkbox" id="show_completed" name="show_completed" {% if show_completed %}checked{% endif %}>
-                <button type="submit" class="btn btn-secondary">筛选</button>
-            </div>
 
-            <!-- 中间：搜索框 -->
-            <div class="input-group" style="width: 30%;">
-                <input type="text" class="form-control" placeholder="搜索项目名称" id="search_term" name="search_term">
-                <div class="input-group-append">
-                    <a href="{{ url_for('search_results') }}" id="search_btn" class="btn btn-primary mb-3">搜索</a>
+            <div class="d-flex justify-content-between mb-3">
+                <!-- 左侧：筛选控件 -->
+                <form action="" method="get" class="mb-3 d-flex justify-content-between">
+                    <div>
+                        <label for="show_completed">已完成项目:</label>
+                        <input type="checkbox" id="show_completed" name="show_completed" {% if show_completed %}checked{% endif %}>
+
+                            {% if show_completed %}
+                            <button type="submit" class="btn btn-info">隐藏</button>
+                            {% else %}
+                            <button type="submit" class="btn btn-info">显示</button>
+                            {% endif %}
+
+                    </div>
+                </form>
+                <!-- 中间：搜索框 -->
+                <div class="input-group" style="width: 30%;">
+                    <input type="text" class="form-control" placeholder="搜索项目名称" id="search_term" name="search_term">
+                    <div class="input-group-append">
+                        <a href="{{ url_for('search_results') }}" id="search_btn" class="btn btn-primary mb-3">搜索</a>
+                    </div>
+                </div>
+
+                <!-- 右侧：创建项目和导出按钮 -->
+                <div>
+                    <a href="{{ url_for('add_project') }}" class="btn btn-primary mb-3">创建项目</a>
+                    <a href="{{ url_for('export_projects_to_excel') }}" class="btn btn-dark mb-3">导出项目信息到 Excel</a>
                 </div>
             </div>
-
-            <!-- 右侧：创建项目和导出按钮 -->
-            <div>
-                <a href="{{ url_for('add_project') }}" class="btn btn-primary mb-3">创建项目</a>
-                <a href="{{ url_for('export_projects_to_excel') }}" class="btn btn-dark mb-3">导出项目信息到 Excel</a>
-            </div>
-        </div>
-
         <table class="table table-striped" style="table-layout: fixed; width: 100%;">
             <thead>
                 <tr>
