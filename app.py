@@ -1,9 +1,12 @@
+from contextlib import nullcontext
+
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 import mysql.connector
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import date
 import pandas as pd
 from io import BytesIO
+from flask import send_file, make_response
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'
@@ -420,28 +423,39 @@ def export_projects_to_excel():
     cursor = conn.cursor(dictionary=True)
 
     query = """
-    SELECT p.id, p.name, p.client_name, p.scale, p.stage, pp.update_content, pp.update_date, u.username AS owner_username
-    FROM Projects p
-    LEFT JOIN (
-        SELECT project_id, MAX(update_date) AS max_date
-        FROM Project_progress
-        GROUP BY project_id
-    ) latest_updates ON p.id = latest_updates.project_id
-    LEFT JOIN Project_progress pp ON p.id = pp.project_id AND latest_updates.max_date = pp.update_date
-    LEFT JOIN Users u ON p.owner = u.id
-    WHERE p.is_deleted = FALSE
-    ORDER BY p.start_date DESC
+    SELECT *
+    FROM (
+        SELECT 
+            p.id AS project_id,
+            p.name AS project_name,
+            p.stage AS project_stage,
+            pp.update_content,
+            pp.update_date,
+            ROW_NUMBER() OVER (PARTITION BY p.id ORDER BY pp.update_date DESC) AS rn,
+            MAX(pp.update_date) OVER (PARTITION BY p.id) AS latest_update_date
+        FROM Projects p
+        LEFT JOIN Project_progress pp ON p.id = pp.project_id
+    ) t
+    WHERE rn <= 3
+    ORDER BY project_id DESC
     """
 
     cursor.execute(query)
     projects = cursor.fetchall()
     for project in projects:
-        project['stage'] = get_stage_name(project['stage'])
+        project['project_stage'] = get_stage_name(project['project_stage'])
 
     cursor.close()
     conn.close()
 
     df = pd.DataFrame(projects)
+    # 忽略 'project_id'、'rn' 和 'latest_update_date' 字段
+    if 'project_id' in df.columns:
+        df.drop(columns=['project_id'], inplace=True)
+    if 'rn' in df.columns:
+        df.drop(columns=['rn'], inplace=True)
+    if 'latest_update_date' in df.columns:
+        df.drop(columns=['latest_update_date'], inplace=True)
     # 添加序号列
     df.insert(0, '序号', range(1, len(df) + 1))
 
@@ -451,10 +465,12 @@ def export_projects_to_excel():
     writer.close()
     output.seek(0)
 
-    return output.getvalue(), 200, {
-        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'Content-Disposition': 'attachment; filename=projects.xlsx'
-    }
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name='projects.xlsx'
+    )
 
 
 @app.route('/search_results')
