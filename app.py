@@ -3,7 +3,7 @@ from contextlib import nullcontext
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 import mysql.connector
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import date
+from datetime import date, datetime, timedelta
 import pandas as pd
 from io import BytesIO
 from flask import send_file, make_response
@@ -529,6 +529,55 @@ def search_results():
     return render_template('search_results.html', projects=projects, search_term=search_term,
                            show_completed=show_completed)
 
+
+@app.route('/search_by_date', methods=['GET', 'POST'])
+def search_by_date():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+        # 获取当前日期作为默认值
+    today = date.today().strftime('%Y-%m-%d')
+    selected_date_str = request.args.get('date', today)
+
+    # 解析日期参数
+    try:
+        selected_date = datetime.strptime(selected_date_str, '%Y-%m-%d')
+    except ValueError:
+        selected_date = datetime.today()
+        selected_date_str = selected_date.strftime('%Y-%m-%d')
+
+    # 计算前一个月和后一个月的日期
+    prev_month_date = selected_date.replace(day=1) - timedelta(days=1)
+    next_month_date = (selected_date.replace(day=28) + timedelta(days=4)).replace(day=1)
+
+    # 获取当前月份的第一天和最后一天
+    first_day = selected_date.replace(day=1)
+    last_day = (first_day.replace(month=first_day.month + 1) if first_day.month < 12
+                else first_day.replace(year=first_day.year + 1, month=1)).replace(day=1) - timedelta(days=1)
+
+    # 查询指定日期的项目更新
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("""
+            SELECT p.name, pp.update_content, pp.update_date
+            FROM Projects p
+            JOIN Project_progress pp ON p.id = pp.project_id
+            WHERE pp.update_date = %s
+        """, (selected_date_str,))
+    updates = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    return render_template('search_by_date.html',
+                           selected_date=selected_date_str,
+                           selected_year=selected_date.year,
+                           selected_month=selected_date.month,
+                           first_day=first_day,
+                           last_day=last_day,
+                           updates=updates,
+                           prev_month=prev_month_date.strftime('%Y-%m-%d'),
+                           next_month=next_month_date.strftime('%Y-%m-%d'),
+                           today=today)
 
 if __name__ == '__main__':
     app.run(debug=True)

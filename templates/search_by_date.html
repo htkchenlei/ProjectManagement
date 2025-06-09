@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="text-center mb-3">项目更新日历</h2>
+
+    <!-- 月份导航 -->
+        <!-- 快速日期选择器 -->
+        <div class="text-center mt-3 mb-4">
+            <label for="datepicker" class="form-label small mr-2">快速选择日期:</label>
+            <input type="date" id="datepicker" value="{{ selected_date }}"
+                   class="form-control-sm"
+                   onchange="window.location.href='{{ url_for('search_by_date') }}?date=' + this.value">
+        </div>
+    </div>
+
+    <!-- 日历格子优化版本 -->
+    <div class="calendar-grid">
+        {% set days_in_month = last_day.day %}
+        {% set first_weekday = first_day.weekday() %}
+
+        <!-- 计算需要的周数 -->
+        {% set weeks_needed = ((days_in_month + first_weekday - 1) // 7) + 1 %}
+
+        <div class="table-responsive">
+            <table class="table table-bordered table-sm mb-0">
+                <tbody>
+                    {% for week_num in range(weeks_needed) %}
+                        <tr>
+                            {% for day_offset in range(7) %}
+                                {% set day_num = week_num * 7 + day_offset - first_weekday + 1 %}
+
+                                {% if day_num < 1 or day_num > days_in_month %}
+                                    <td class="text-center p-1 bg-light text-muted opacity-50">
+                                        <div class="py-2"></div>
+                                    </td>
+                                {% else %}
+                                    {% set current_date = first_day.replace(day=day_num) %}
+                                    <td class="text-center p-1
+                                              {% if current_date.weekday() == 6 or current_date.weekday() == 5 %}bg-light{% endif %}">
+                                        <a href="{{ url_for('search_by_date', date=current_date.strftime('%Y-%m-%d')) }}"
+                                           class="d-block rounded p-1 h-100
+                                                  {% if current_date.strftime('%Y-%m-%d') == selected_date %}bg-primary text-white{% endif %}
+                                                  {% if current_date.strftime('%Y-%m-%d') == today %}border border-danger{% endif %}
+                                                  {% if current_date in has_updates_dates %}bg-success text-white{% endif %}">
+                                            {{ day_num }}
+                                        </a>
+                                    </td>
+                                {% endif %}
+                            {% endfor %}
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 更新信息展示 -->
+    <div class="mt-4">
+        <h3 class="mb-3">
+            {% if selected_date == today %}
+                <span class="text-danger">今日</span> ({{ selected_date }}) 更新信息
+            {% else %}
+                {{ selected_date }} 更新信息
+            {% endif %}
+        </h3>
+
+        {% if updates %}
+            <div class="list-group">
+                {% for update in updates %}
+                    <div class="list-group-item list-group-item-action">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h5 class="mb-1 font-weight-bold">{{ update.name }}</h5>
+                            <small class="text-muted">{{ update.update_date }}</small>
+                        </div>
+                        <p class="mb-1">{{ update.update_content }}</p>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="alert alert-info text-center py-3" role="alert">
+                该日期没有项目更新信息
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
