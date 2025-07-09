@@ -96,13 +96,29 @@ def index():
         return redirect(url_for('manage_projects'))
 
     show_completed = request.args.get('show_completed', 'true') == 'true'
-    page = request.args.get('page', 1, type=int)  # 新增：获取当前页码，默认第一页
+    page = request.args.get('page', 1, type=int)  # 获取当前页码，默认第一页
     per_page = 15  # 每页显示条数
-
-    pagination = Project.query.paginate(page=page, per_page=per_page, error_out=False)
 
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
+
+    # 查询总项目数用于分页
+    count_query = """
+    SELECT COUNT(*) as total
+    FROM Projects p
+    WHERE p.is_deleted = FALSE AND (p.stage != '12' OR %s)
+    """
+
+    count_params = [show_completed]
+    if not session['is_admin']:
+        count_query += " AND (p.sales_person = %s OR p.owner = %s)"
+        count_params.extend([session['user_id'], session['user_id']])
+
+    cursor.execute(count_query, count_params)
+    total = cursor.fetchone()['total']
+
+    # 计算总页数
+    total_pages = (total + per_page - 1) // per_page
 
     query = """
     SELECT p.id, p.name, p.client_name, p.scale, p.stage, pp.update_content, pp.update_date, u.username AS owner_username
@@ -133,24 +149,6 @@ def index():
     cursor.execute(query, params)
     projects = cursor.fetchall()
 
-    # 获取总项目数用于分页
-    count_query = """
-    SELECT COUNT(*) as total
-    FROM Projects p
-    WHERE p.is_deleted = FALSE AND (p.stage != '12' OR %s)
-    """
-
-    count_params = [show_completed]
-    if not session['is_admin']:
-        count_query += " AND (p.sales_person = %s OR p.owner = %s)"
-        count_params.extend([session['user_id'], session['user_id']])
-
-    cursor.execute(count_query, count_params)
-    total = cursor.fetchone()['total']
-
-    # 计算总页数
-    total_pages = (total + per_page - 1) // per_page
-
     for i, project in enumerate(projects, start=(page - 1)*per_page + 1):
         project['serial_number'] = i
         project['stage'] = get_stage_name(project['stage'])
@@ -158,12 +156,27 @@ def index():
     cursor.close()
     conn.close()
 
+    # 模拟分页对象
+    class Pagination:
+        def __init__(self, page, per_page, total, items):
+            self.page = page
+            self.per_page = per_page
+            self.total = total
+            self.items = items
+            self.pages = (total + per_page - 1) // per_page
+
+        def iter_pages(self):
+            return range(1, self.pages + 1)
+
+    pagination = Pagination(page, per_page, total, projects)
+
     return render_template(
         'index.html',
         projects=projects,
         show_completed=show_completed,
         page=page,
-        total_pages=total_pages
+        total_pages=total_pages,
+        pagination=pagination
     )
 
 
