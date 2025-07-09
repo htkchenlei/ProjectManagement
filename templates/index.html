@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
-    <div class="container mt-5 mx-auto" style="max-width: 100%;">
+    class="container mt-5 mx-auto" style="max-width: 100%;">
 
             <div class="d-flex justify-content-between mb-3">
                 <!-- 左侧：筛选控件 -->
@@ -60,9 +60,23 @@
                     </td>
                 </tr>
                 {% endfor %}
+                <!-- 分页 -->
+                <div class="d-flex justify-content-center mt-4">
+                    <nav>
+                        <ul class="pagination">
+                            {% for p in pagination.iter_pages() %}
+                                {% if p %}
+                                    <li class="page-item {% if p == pagination.page %}active{% endif %}">
+                                        <a class="page-link" href="{{ url_for(request.endpoint) }}?page={{ p }}{% if request.args.get('show_completed') %}&show_completed=1{% endif %}{% if request.args.get('search_term') %}&search_term={{ request.args.search_term }}{% endif %}">{{ p }}</a>
+
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                        </ul>
+                    </nav>
+                </div>
+
             </tbody>
-        </table>
-    </div>
 
     <script>
         document.getElementById('search_btn').addEventListener('click', function(e) {

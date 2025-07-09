@@ -1,12 +1,7 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>新增项目</title>
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
-</head>
-<body>
+{% extends "base.html" %}
+
+{% block content %}
     <div class="container mt-5">
         <h2>新增项目</h2>
         <form method="post">
@@ -64,10 +59,10 @@
                     <input type="text" class="form-control" value="{{ session['username'] }}" disabled>
                 {% endif %}
             </div>
-            <button type="submit" class="btn btn-primary">添加项目</button>
-            <a href="{{ url_for('index') }}" class="btn btn-secondary">返回主页</a>
-            <a href="{{ url_for('logout') }}" class="btn btn-danger">退出登录</a>
+            <div style="width: 200px; margin: 0 auto;">
+                <button type="submit" class="btn btn-primary">添加项目</button>
+            </div>
+
         </form>
     </div>
-</body>
-</html>
+{% endblock %}

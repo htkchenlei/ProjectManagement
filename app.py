@@ -65,6 +65,9 @@ def login():
         cursor.close()
         conn.close()
 
+        print(f'password: {password}')
+        print(f"user['password']: {user['password']}")
+
         if user and check_password_hash(user['password'], password):
             session['user_id'] = user['id']
             session['username'] = user['username']
@@ -92,10 +95,11 @@ def index():
     if session['is_admin']:
         return redirect(url_for('manage_projects'))
 
-    # print(session['is_admin'])
-
     show_completed = request.args.get('show_completed', 'true') == 'true'
-    print(show_completed)
+    page = request.args.get('page', 1, type=int)  # 新增：获取当前页码，默认第一页
+    per_page = 15  # 每页显示条数
+
+    pagination = Project.query.paginate(page=page, per_page=per_page, error_out=False)
 
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -111,9 +115,6 @@ def index():
     LEFT JOIN Project_progress pp ON pp.id = latest_updates.max_id
     LEFT JOIN Users u ON p.owner = u.id
     WHERE p.is_deleted = FALSE AND (p.stage != '12' OR %s)
-    ORDER BY pp.update_date DESC
-    LIMIT 15;
-
     """
 
     params = [show_completed]
@@ -122,19 +123,48 @@ def index():
         query += " AND (p.sales_person = %s OR p.owner = %s)"
         params.extend([session['user_id'], session['user_id']])
 
-    query += " ORDER BY pp.update_date DESC LIMIT 15;"
+    query += " ORDER BY pp.update_date DESC"
+
+    # 添加分页条件
+    query += " LIMIT %s OFFSET %s"
+    params.append(per_page)
+    params.append((page - 1) * per_page)
 
     cursor.execute(query, params)
     projects = cursor.fetchall()
 
-    for i, project in enumerate(projects, start=1):
+    # 获取总项目数用于分页
+    count_query = """
+    SELECT COUNT(*) as total
+    FROM Projects p
+    WHERE p.is_deleted = FALSE AND (p.stage != '12' OR %s)
+    """
+
+    count_params = [show_completed]
+    if not session['is_admin']:
+        count_query += " AND (p.sales_person = %s OR p.owner = %s)"
+        count_params.extend([session['user_id'], session['user_id']])
+
+    cursor.execute(count_query, count_params)
+    total = cursor.fetchone()['total']
+
+    # 计算总页数
+    total_pages = (total + per_page - 1) // per_page
+
+    for i, project in enumerate(projects, start=(page - 1)*per_page + 1):
         project['serial_number'] = i
         project['stage'] = get_stage_name(project['stage'])
 
     cursor.close()
     conn.close()
 
-    return render_template('index.html', projects=projects, show_completed=show_completed)
+    return render_template(
+        'index.html',
+        projects=projects,
+        show_completed=show_completed,
+        page=page,
+        total_pages=total_pages
+    )
 
 
 @app.route('/add_project', methods=['GET', 'POST'])
