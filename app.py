@@ -121,10 +121,10 @@ def index():
     total_pages = (total + per_page - 1) // per_page
 
     query = """
-    SELECT p.id, p.name, p.client_name, p.scale, p.stage, pp.update_content, pp.update_date, u.username AS owner_username
+    SELECT p.id, p.name, p.client_name, p.scale, p.stage, pp.update_content, pp.update_date, pp.update_time, u.username AS owner_username
     FROM Projects p
     LEFT JOIN (
-        SELECT project_id, MAX(update_date) AS max_date, MAX(id) AS max_id
+        SELECT project_id, MAX(CONCAT(update_date, ' ', update_time)) AS max_datetime, MAX(id) AS max_id
         FROM Project_progress
         GROUP BY project_id
     ) latest_updates ON p.id = latest_updates.project_id
@@ -139,7 +139,7 @@ def index():
         query += " AND (p.sales_person = %s OR p.owner = %s)"
         params.extend([session['user_id'], session['user_id']])
 
-    query += " ORDER BY pp.update_date DESC"
+    query += " ORDER BY latest_updates.max_datetime DESC"
 
     # 添加分页条件
     query += " LIMIT %s OFFSET %s"
@@ -178,7 +178,6 @@ def index():
         total_pages=total_pages,
         pagination=pagination
     )
-
 
 @app.route('/add_project', methods=['GET', 'POST'])
 def add_project():
@@ -234,10 +233,12 @@ def update_project(project_id):
 
     if request.method == 'POST':
         update_content = request.form['update_content']
+        is_important = 'is_important' in request.form
+        current_time = datetime.now().strftime('%H:%M:%S')
 
-        cursor.execute("""INSERT INTO Project_progress (project_id, update_content, update_date, updated_by)
-                          VALUES (%s, %s, CURDATE(), %s)""",
-                       (project_id, update_content, session['user_id']))
+        cursor.execute("""INSERT INTO Project_progress (project_id, update_content, update_date, update_time, updated_by, is_important)
+                          VALUES (%s, %s, CURDATE(), %s, %s, %s)""",
+                       (project_id, update_content, current_time, session['user_id'], is_important))
 
         conn.commit()
         cursor.close()
@@ -253,7 +254,7 @@ def update_project(project_id):
 
     # 查询项目的更新历史
     cursor.execute("""
-        SELECT pp.update_content, pp.update_date, u.username
+        SELECT pp.update_content, pp.update_date, pp.update_time, pp.is_important, u.username
         FROM Project_progress pp
         LEFT JOIN Users u ON pp.updated_by = u.id
         WHERE pp.project_id = %s
@@ -266,8 +267,6 @@ def update_project(project_id):
 
     return render_template('project_update.html', project=project, updates=updates)
 
-
-
 @app.route('/project_details/<int:project_id>')
 def project_details(project_id):
     if 'user_id' not in session:
@@ -277,19 +276,19 @@ def project_details(project_id):
     cursor = conn.cursor(dictionary=True)
 
     cursor.execute("""
-    SELECT p.*, pp.update_content, pp.update_date, u.username AS updated_by_username
+    SELECT p.*, pp.update_content, pp.update_date, pp.update_time, u.username AS updated_by_username
     FROM Projects p
     LEFT JOIN Project_progress pp ON p.id = pp.project_id
     LEFT JOIN Users u ON pp.updated_by = u.id
     WHERE p.id = %s
-    ORDER BY pp.update_date DESC
+    ORDER BY pp.update_date DESC, pp.update_time DESC
     """, (project_id,))
     project_details = cursor.fetchall()
     project_details[0]['stage'] = get_stage_name(project_details[0]['stage'])
 
     # 查询项目的更新历史
     cursor.execute("""
-            SELECT pp.update_content, pp.update_date, u.username
+            SELECT pp.update_content, pp.update_date, pp.update_time, u.username
             FROM Project_progress pp
             LEFT JOIN Users u ON pp.updated_by = u.id
             WHERE pp.project_id = %s
@@ -312,21 +311,19 @@ def manage_projects():
     cursor = conn.cursor(dictionary=True)
 
     cursor.execute("""
-    SELECT p.id, p.name, p.client_name, p.scale, p.stage, pp.update_content, pp.update_date, u.username AS owner_username
+    SELECT p.id, p.name, p.client_name, p.scale, p.stage, pp.update_content, pp.update_date, pp.update_time, u.username AS owner_username
     FROM Projects p
     LEFT JOIN (
-        SELECT project_id, MAX(update_date) AS max_date, MAX(id) AS max_id
+        SELECT project_id, MAX(CONCAT(update_date, ' ', update_time)) AS max_datetime, MAX(id) AS max_id
         FROM Project_progress
         GROUP BY project_id
     ) latest_updates ON p.id = latest_updates.project_id
     LEFT JOIN Project_progress pp ON pp.id = latest_updates.max_id
     LEFT JOIN Users u ON p.owner = u.id
     WHERE p.is_deleted = FALSE AND (p.stage != '12' OR 1.0)
-    ORDER BY pp.update_date DESC
-    LIMIT 15;
     """)
-
     projects = cursor.fetchall()
+
     for i, project in enumerate(projects, start=1):
         project['serial_number'] = i
         project['stage'] = get_stage_name(project['stage'])

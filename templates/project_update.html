@@ -15,7 +15,7 @@
                 <p class="card-text"><strong>项目地点:</strong> {{ project.location }}</p>
                 <p class="card-text"><strong>销售:</strong> {{ project.sales_person }}</p>
                 <p class="card-text"><strong>项目阶段:</strong> {{ project.stage }}</p>
-                </div>
+            </div>
         </div>
 
         <!-- 显示以前的更新内容 -->
@@ -24,7 +24,7 @@
                 <h5 class="card-title">历史更新</h5>
                 {% if updates %}
                     {% for update in updates %}
-                        <p class="card-text"><strong>{{ update.update_date }} @ {{ update.username }}:</strong> {{ update.update_content }}</p>
+                        <p class="card-text {% if update.is_important %}text-danger{% endif %}"><strong>{{ update.update_date }} @ {{ update.username }}:</strong> {{ update.update_content }}</p>
                     {% endfor %}
                 {% else %}
                     <p class="card-text">暂无更新内容</p>
@@ -35,7 +35,17 @@
         <!-- 更新表单 -->
         <form method="post">
             <div class="form-group">
-                <label for="update_content">更新内容:</label>
+                <!-- 第一行：标签和单选框 -->
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <label for="update_content">更新内容:</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="is_important" name="is_important">
+                        <label class="form-check-label" for="is_important">
+                            重要更新
+                        </label>
+                    </div>
+                </div>
+                <!-- 第二行：输入框 -->
                 <textarea class="form-control" id="update_content" name="update_content" rows="3" required></textarea>
             </div>
             <div class="d-flex justify-content-center">
