@@ -62,16 +62,18 @@ def login():
         cursor = conn.cursor(dictionary=True)
         cursor.execute("SELECT * FROM Users WHERE username = %s", (username,))
         user = cursor.fetchone()
+        print(user.get('is_enable'))
         cursor.close()
         conn.close()
 
-        print(f'password: {password}')
-        print(f"user['password']: {user['password']}")
-
         if user and check_password_hash(user['password'], password):
-            session['user_id'] = user['id']
-            session['username'] = user['username']
-            session['is_admin'] = user['is_admin']
+            if user.get('is_enable') is 0:
+                flash('用户已禁用，请联系管理员')
+                return redirect(url_for('login'))
+            else:
+                session['user_id'] = user['id']
+                session['username'] = user['username']
+                session['is_admin'] = user['is_admin']
             if remember_me:
                 session.permanent = True
             return redirect(url_for('index'))
@@ -453,6 +455,80 @@ def add_user():
         return redirect(url_for('add_user'))
 
     return render_template('add_user.html')
+
+
+@app.route('/manage_user')
+@app.route('/manage_user')
+def manage_user():
+    if 'user_id' not in session or not session['is_admin']:
+        return redirect(url_for('index'))
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    # 获取参数
+    user_id = request.args.get('user_id')
+    action = request.args.get('action')
+
+    try:
+        if user_id and action:
+            cursor.execute("SELECT * FROM Users WHERE id = %s", (user_id,))
+            user = cursor.fetchone()
+
+            if not user:
+                flash("用户不存在")
+            else:
+                if action == 'reset':
+                    hashed_password = generate_password_hash('tianyu.123')
+                    cursor.execute("UPDATE Users SET password = %s WHERE id = %s", (hashed_password, user_id))
+                    flash("密码已重置为默认密码")
+
+                elif action == 'disable':
+                    cursor.execute("UPDATE Users SET is_enable = FALSE WHERE id = %s", (user_id,))
+                    flash("账号已停用")
+
+                elif action == 'enable':
+                    cursor.execute("UPDATE Users SET is_enable = TRUE WHERE id = %s", (user_id,))
+                    flash("账号已启用")
+
+                elif action == 'promote':
+                    cursor.execute("UPDATE Users SET is_admin = TRUE WHERE id = %s", (user_id,))
+                    flash("用户已设为管理员")
+
+                elif action == 'demote':
+                    if user['id'] == session['user_id']:
+                        flash("不能取消自己的管理员权限")
+                    else:
+                        cursor.execute("UPDATE Users SET is_admin = FALSE WHERE id = %s", (user_id,))
+                        flash("用户已取消管理员权限")
+
+                conn.commit()
+
+        # 查询所有用户
+        cursor.execute("SELECT * FROM Users")
+        users = cursor.fetchall()
+
+        for user in users:
+            if user['is_enable'] == 0:
+                user['is_enable'] = '停用'
+            else:
+                user['is_enable'] = '启用'
+
+            if user['is_admin'] == 1:
+                user['is_admin'] = '是'
+            else:
+                user['is_admin'] = '否'
+
+    except mysql.connector.Error as err:
+        flash(f"数据库错误: {err}")
+        users = []
+
+    finally:
+        cursor.close()
+        conn.close()
+
+    return render_template('manage_users.html', users=users)
+
 
 @app.route('/export_projects_to_excel')
 def export_projects_to_excel():

@@ -3,10 +3,11 @@
 {% block content %}
     <div class="container mt-5">
 
-        <div class="mb-3">
+        <div class="mb-3" style="text-align: center">
             <h2>管理面板</h2>
             <a href="{{ url_for('add_project') }}" class="btn btn-primary mb-3">创建项目</a>
             <a href="{{ url_for('add_user') }}" class="btn btn-primary mb-3">增加用户</a>
+            <a href="{{ url_for('manage_user') }}" class="btn btn-primary mb-3">管理用户</a>
         </div>
         <table class="table table-striped" style="table-layout: fixed; width: 100%;">
             <thead>

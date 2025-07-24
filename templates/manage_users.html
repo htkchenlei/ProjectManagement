@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <div class="container mt-5">
+
+        <div class="mb-3" style="text-align: center">
+            <h2>用户管理</h2>
+        </div>
+        <table class="table table-striped" style="table-layout: fixed; width: 100%;">
+            <thead>
+                <tr>
+                    <th style="width: 6%; text-align: center;">序号</th>
+                    <th style="width: 20%; text-align: center;">用户名</th>
+                    <th style="width: 12%; text-align: center;">管理权限</th>
+                    <th style="width: 12%; text-align: center;">状态</th>
+                    <th style="width: 17%; text-align: center;">操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                    <tr>
+                        <td style="width: 6%; text-align: center;">{{ user.id }}</td>
+                        <td style="width: 20%; text-align: center;">{{ user.username }}</td>
+                        <td style="width: 12%; text-align: center;">{{ user.is_admin }}</td>
+                        <td style="width: 12%; text-align: center;">{{ user.is_enable }}</td>
+                        <td style="width: 17%;  text-align: center;">
+                             <a href="{{ url_for('manage_user', user_id=user.id, action='reset') }}" class="btn btn-secondary btn-sm">重置</a>
+
+                            {% if user.is_enable %}
+                                <a href="{{ url_for('manage_user', user_id=user.id, action='disable') }}" class="btn btn-danger btn-sm">停用</a>
+                            {% else %}
+                                <a href="{{ url_for('manage_user', user_id=user.id, action='enable') }}" class="btn btn-success btn-sm">启用</a>
+                            {% endif %}
+
+                            {% if user.is_admin %}
+                                <a href="{{ url_for('manage_user', user_id=user.id, action='demote') }}" class="btn btn-warning btn-sm">取消管理</a>
+                            {% else %}
+                                <a href="{{ url_for('manage_user', user_id=user.id, action='promote') }}" class="btn btn-primary btn-sm">设为管理</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endblock %}
