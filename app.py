@@ -696,5 +696,7 @@ def search_by_date():
                            next_month=next_month_date.strftime('%Y-%m-%d'),
                            today=today)
 
+
+
 if __name__ == '__main__':
     app.run(debug=True)
