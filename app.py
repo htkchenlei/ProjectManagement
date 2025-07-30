@@ -696,6 +696,81 @@ def search_by_date():
                            next_month=next_month_date.strftime('%Y-%m-%d'),
                            today=today)
 
+@app.route('/statistics')
+def statistics():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    # 查询各省份项目金额统计
+    cursor.execute("""
+        SELECT location as province, SUM(scale) as total_scale
+        FROM Projects 
+        WHERE is_deleted = FALSE
+        GROUP BY location
+        ORDER BY total_scale DESC
+    """)
+    province_data = cursor.fetchall()
+
+    # 查询各阶段项目数量统计
+    cursor.execute("""
+        SELECT stage, COUNT(*) as project_count
+        FROM Projects 
+        WHERE is_deleted = FALSE
+        GROUP BY stage
+        ORDER BY project_count DESC
+    """)
+    stage_data = cursor.fetchall()
+
+    # 转换阶段ID为名称
+    for item in stage_data:
+        item['stage_name'] = get_stage_name(item['stage'])
+
+    # 查询每月新增项目数量
+    cursor.execute("""
+        SELECT 
+            DATE_FORMAT(start_date, '%Y-%m') as month,
+            COUNT(*) as project_count
+        FROM Projects 
+        WHERE is_deleted = FALSE
+        GROUP BY DATE_FORMAT(start_date, '%Y-%m')
+        ORDER BY month
+    """)
+    monthly_data = cursor.fetchall()
+
+    # 查询项目规模分布
+    cursor.execute("""
+        SELECT 
+            CASE 
+                WHEN scale < 100 THEN '小型项目 (<100万)'
+                WHEN scale BETWEEN 100 AND 500 THEN '中型项目 (100-500万)'
+                WHEN scale BETWEEN 501 AND 1000 THEN '大型项目 (501-1000万)'
+                ELSE '超大型项目 (>1000万)'
+            END as scale_range,
+            COUNT(*) as project_count
+        FROM Projects 
+        WHERE is_deleted = FALSE
+        GROUP BY 
+            CASE 
+                WHEN scale < 100 THEN '小型项目 (<100万)'
+                WHEN scale BETWEEN 100 AND 500 THEN '中型项目 (100-500万)'
+                WHEN scale BETWEEN 501 AND 1000 THEN '大型项目 (501-1000万)'
+                ELSE '超大型项目 (>1000万)'
+            END
+        ORDER BY MIN(scale)
+    """)
+    scale_distribution = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+
+    return render_template('statistics.html',
+                           province_data=province_data,
+                           stage_data=stage_data,
+                           monthly_data=monthly_data,
+                           scale_distribution=scale_distribution)
 
 
 if __name__ == '__main__':
