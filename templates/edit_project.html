@@ -1,58 +1,84 @@
 {% extends "base.html" %}
 
 {% block content %}
-    <div class="container mt-5">
-        <h2>编辑项目: {{ project.name }}</h2>
-        <form method="post">
-            <div class="form-group">
-                <label for="name">项目名称:</label>
-                <input type="text" class="form-control" id="name" name="name" value="{{ project.name }}" required>
+<div class="container mt-4">
+    <h2 class="card-title text-center">编辑项目</h2>
+    <form method="POST">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="name">项目名称:</label>
+                    <input type="text" class="form-control" id="name" name="name" value="{{ project.name }}" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="client_name">客户名称:</label>
+                    <input type="text" class="form-control" id="client_name" name="client_name" value="{{ project.client_name }}" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="scale">项目规模 (万元):</label>
+                    <input type="number" class="form-control" id="scale" name="scale" value="{{ project.scale }}" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="start_date">开始日期:</label>
+                    <input type="date" class="form-control" id="start_date" name="start_date" value="{{ project.start_date }}" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="owner">项目负责人:</label>
+                    <input type="text" class="form-control" id="owner" name="owner" value="{{ project.owner_username or project.owner or '' }}" placeholder="请输入项目负责人" required>
+                </div>
             </div>
-            <div class="form-group">
-                <label for="client_name">客户名称:</label>
-                <input type="text" class="form-control" id="client_name" name="client_name" value="{{ project.client_name }}" required>
+
+            <div class="col-md-6">
+                <!-- 地区信息 -->
+                <div class="form-group">
+                    <label for="province">省份:</label>
+                    <input type="text" class="form-control" id="province" name="province" value="{{ project.province or '' }}" placeholder="请输入省份">
+                </div>
+
+                <div class="form-group">
+                    <label for="city">城市:</label>
+                    <input type="text" class="form-control" id="city" name="city" value="{{ project.city or '' }}" placeholder="请输入城市（可选）">
+                </div>
+
+                <div class="form-group">
+                    <label for="district">行政区:</label>
+                    <input type="text" class="form-control" id="district" name="district" value="{{ project.district or '' }}" placeholder="请输入行政区（可选）">
+                </div>
+
+                <div class="form-group">
+                    <label for="sales_person">销售负责人:</label>
+                    <input type="text" class="form-control" id="sales_person" name="sales_person" value="{{ project.sales_person }}" placeholder="请输入销售负责人" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="stage">项目阶段:</label>
+                    <select class="form-control" id="stage" name="stage" required>
+                        <option value="">请选择阶段</option>
+                        <option value="1" {% if project.stage == '1' %}selected{% endif %}>立项中|初步沟通</option>
+                        <option value="2" {% if project.stage == '2' %}selected{% endif %}>立项中|提交立项申请</option>
+                        <option value="3" {% if project.stage == '3' %}selected{% endif %}>已立项|编制解决方案</option>
+                        <option value="4" {% if project.stage == '4' %}selected{% endif %}>已立项|编制设计方案</option>
+                        <option value="5" {% if project.stage == '5' %}selected{% endif %}>已立项|编制招投标参数</option>
+                        <option value="6" {% if project.stage == '6' %}selected{% endif %}>招投标|编制参数</option>
+                        <option value="7" {% if project.stage == '7' %}selected{% endif %}>招投标|已挂网</option>
+                        <option value="8" {% if project.stage == '8' %}selected{% endif %}>招投标|等待结果</option>
+                        <option value="9" {% if project.stage == '9' %}selected{% endif %}>已中标|已公示</option>
+                        <option value="10" {% if project.stage == '10' %}selected{% endif %}>已中标|已获取中标通知书</option>
+                        <option value="11" {% if project.stage == '11' %}selected{% endif %}>已中标|签署合同</option>
+                        <option value="12" {% if project.stage == '12' %}selected{% endif %}>已完成|转入项目实施</option>
+                    </select>
+                </div>
             </div>
-            <div class="form-group">
-                <label for="scale">项目规模:</label>
-                <input type="number" class="form-control" id="scale" name="scale" value="{{ project.scale }}" required>
-            </div>
-            <div class="form-group">
-                <label for="start_date">开始日期:</label>
-                <input type="date" class="form-control" id="start_date" name="start_date" value="{{ project.start_date }}" required>
-            </div>
-            <div class="form-group">
-                <label for="location">项目地点:</label>
-                <input type="text" class="form-control" id="location" name="location" value="{{ project.location }}" required>
-            </div>
-            <div class="form-group">
-                <label for="sales_person">销售:</label>
-                <input type="text" class="form-control" id="sales_person" name="sales_person" value="{{ project.sales_person }}" required>
-            </div>
-            <div class="form-group">
-                <label for="stage">项目阶段:</label>
-                <select class="form-control" id="stage" name="stage" required>
-                    <option value="1" {% if project.stage == '1' %}selected{% endif %}>立项中|初步沟通</option>
-                    <option value="2" {% if project.stage == '2' %}selected{% endif %}>立项中|提交立项申请</option>
-                    <option value="3" {% if project.stage == '3' %}selected{% endif %}>已立项|编制解决方案</option>
-                    <option value="4" {% if project.stage == '4' %}selected{% endif %}>已立项|编制设计方案</option>
-                    <option value="5" {% if project.stage == '5' %}selected{% endif %}>已立项|编制招投标参数</option>
-                    <option value="6" {% if project.stage == '6' %}selected{% endif %}>招投标|编制参数</option>
-                    <option value="7" {% if project.stage == '7' %}selected{% endif %}>招投标|已挂网</option>
-                    <option value="8" {% if project.stage == '8' %}selected{% endif %}>招投标|等待结果</option>
-                    <option value="9" {% if project.stage == '9' %}selected{% endif %}>已中标|已公示</option>
-                    <option value="10" {% if project.stage == '10' %}selected{% endif %}>已中标|已获取中标通知书</option>
-                    <option value="11" {% if project.stage == '11' %}selected{% endif %}>已中标|签署合同</option>
-                    <option value="12" {% if project.stage == '12' %}selected{% endif %}>已完成|转入项目实施</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="owner">负责人:</label>
-                <input type="hidden" id="owner" name="owner" value="{{ session['user_id'] }}">
-                <input type="text" class="form-control" value="{{ session['username'] }}" disabled>
-            </div>
-            <div class="d-flex justify-content-center">
-                <button type="submit" class="btn btn-primary">保存</button>
-            </div>
-        </form>
-    </div>
+        </div>
+
+        <div class="d-flex justify-content-center mt-3">
+            <button type="submit" class="btn btn-primary mr-2">保存修改</button>
+            <a href="{{ url_for('manage_projects') }}" class="btn btn-secondary">取消</a>
+        </div>
+    </form>
+</div>
 {% endblock %}

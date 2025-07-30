@@ -7,14 +7,25 @@
         <!-- 显示项目基本信息 -->
         <div class="card mb-3">
             <div class="card-body">
-                <h5 class="card-title">项目基本信息</h5>
-                <p class="card-text"><strong>项目名称:</strong> {{ project.name }}</p>
-                <p class="card-text"><strong>客户名称:</strong> {{ project.client_name }}</p>
-                <p class="card-text"><strong>项目规模:</strong> {{ project.scale }}</p>
-                <p class="card-text"><strong>开始日期:</strong> {{ project.start_date }}</p>
-                <p class="card-text"><strong>项目地点:</strong> {{ project.location }}</p>
-                <p class="card-text"><strong>销售:</strong> {{ project.sales_person }}</p>
-                <p class="card-text"><strong>项目阶段:</strong> {{ project.stage }}</p>
+                 <h5 class="card-title text-center">项目基本信息</h5>
+                <div class="row">
+                    <!-- 左侧信息 -->
+                    <div class="col-md-6">
+                        <p class="card-text"><strong>项目名称:</strong> {{ project.name }}</p>
+                        <p class="card-text"><strong>客户名称:</strong> {{ project.client_name }}</p>
+                        <p class="card-text"><strong>项目规模:</strong> {{ project.scale }}</p>
+                        <p class="card-text"><strong>销售:</strong> {{ project.sales_person }}</p>
+                        <p class="card-text"><strong>开始日期:</strong> {{ project.start_date }}</p>
+                    </div>
+
+                    <!-- 右侧信息 -->
+                    <div class="col-md-6">
+                        <p class="card-text"><strong>省份:</strong> {{ project.province or '/' }}</p>
+                        <p class="card-text"><strong>城市:</strong> {{ project.city or '/' }}</p>
+                        <p class="card-text"><strong>行政区:</strong> {{ project.district or '/' }}</p>
+                        <p class="card-text"><strong>项目阶段:</strong> {{ project.stage }}</p>
+                    </div>
+                </div>
             </div>
         </div>
 

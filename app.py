@@ -180,32 +180,35 @@ def index():
         pagination=pagination
     )
 
+
 @app.route('/add_project', methods=['GET', 'POST'])
 def add_project():
     if 'user_id' not in session:
-        # print("check user_id")
         return redirect(url_for('index'))
-    # print("today")
+
     today = date.today().isoformat()
-    # print("after today")
 
     if request.method == 'POST':
         name = request.form['name']
         client_name = request.form['client_name']
         scale = int(request.form['scale'])
         start_date = request.form['start_date']
-        location = request.form['location']
         sales_person = request.form['sales_person']
         stage = request.form['stage']
         owner = request.form['owner']
+
+        # 获取地区信息
+        province = request.form.get('province', '')
+        city = request.form.get('city', '')
+        district = request.form.get('district', '')
 
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
 
         cursor.execute("""
-        INSERT INTO Projects (name, client_name, scale, start_date, location, sales_person, stage, owner)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-        """, (name, client_name, scale, start_date, location, sales_person, stage, owner))
+        INSERT INTO Projects (name, client_name, scale, start_date, sales_person, stage, owner, province, city, district)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (name, client_name, scale, start_date, sales_person, stage, owner, province, city, district))
 
         conn.commit()
         cursor.close()
@@ -342,22 +345,63 @@ def manage_projects():
 def edit_project(project_id):
     if 'user_id' not in session:
         return redirect(url_for('index'))
+
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
 
+    # 检查用户是否有权限编辑该项目
+    cursor.execute("SELECT owner FROM Projects WHERE id = %s", (project_id,))
+    project = cursor.fetchone()
+
+    if not project:
+        flash("项目不存在")
+        cursor.close()
+        conn.close()
+        return redirect(url_for('manage_projects'))
+
+    # 只有项目负责人或管理员可以编辑项目
+    if session['user_id'] != project['owner'] and not session.get('is_admin', False):
+        flash("您没有权限编辑此项目")
+        cursor.close()
+        conn.close()
+        return redirect(url_for('index'))
     if request.method == 'POST':
         name = request.form['name']
         client_name = request.form['client_name']
         scale = int(request.form['scale'])
         start_date = request.form['start_date']
-        location = request.form['location']
         sales_person = request.form['sales_person']
         stage = request.form['stage']
-        owner = request.form['owner']
+        owner_username = request.form['owner']  # 获取输入的用户名
+
+        # 获取地区信息
+        province = request.form.get('province', '')
+        city = request.form.get('city', '')
+        district = request.form.get('district', '')
+
+        # 根据用户名查找用户ID
+        cursor.execute("SELECT id FROM Users WHERE username = %s", (owner_username,))
+        owner_user = cursor.fetchone()
+        if owner_user:
+            owner = owner_user['id']
+        else:
+            # 如果找不到对应的用户，可以抛出错误或使用默认值
+            flash(f"找不到用户 '{owner_username}'，请检查用户名是否正确")
+            cursor.close()
+            conn.close()
+            return redirect(url_for('edit_project', project_id=project_id))
 
         # 获取项目的旧信息
         cursor.execute("SELECT * FROM Projects WHERE id = %s", (project_id,))
         old_project = cursor.fetchone()
+
+        # 获取旧项目负责人的用户名
+        old_owner_name = ''
+        if old_project['owner']:
+            cursor.execute("SELECT username FROM Users WHERE id = %s", (old_project['owner'],))
+            owner_user = cursor.fetchone()
+            if owner_user:
+                old_owner_name = owner_user['username']
 
         # 构建更新内容
         update_content = []
@@ -369,27 +413,36 @@ def edit_project(project_id):
             update_content.append(f"项目规模从 {old_project['scale']} 改为 {scale}")
         if str(old_project['start_date']) != start_date:
             update_content.append(f"开始日期从 {old_project['start_date']} 改为 {start_date}")
-        if old_project['location'] != location:
-            update_content.append(f"项目地点从 {old_project['location']} 改为 {location}")
         if old_project['sales_person'] != sales_person:
             update_content.append(f"销售从 {old_project['sales_person']} 改为 {sales_person}")
+        if old_project['owner'] != owner:
+            # 获取新项目负责人的用户名
+            update_content.append(f"项目负责人从 {old_owner_name} 改为 {owner_username}")
         if old_project['stage'] != stage:
             update_content.append(f"项目阶段从 {get_stage_name(old_project['stage'])} 改为 {get_stage_name(stage)}")
+        if old_project['province'] != province:
+            update_content.append(f"省份从 {old_project['province']} 改为 {province}")
+        if old_project['city'] != city:
+            update_content.append(f"城市从 {old_project['city']} 改为 {city}")
+        if old_project['district'] != district:
+            update_content.append(f"行政区从 {old_project['district']} 改为 {district}")
 
         # 将更新内容拼接成字符串
         update_content_str = "; ".join(update_content)
 
         # 更新 Projects 表
         cursor.execute("""
-        UPDATE Projects SET name = %s, client_name = %s, scale = %s, start_date = %s, location = %s, sales_person = %s, stage = %s, owner = %s
+        UPDATE Projects 
+        SET name = %s, client_name = %s, scale = %s, start_date = %s, sales_person = %s, stage = %s, owner = %s, province = %s, city = %s, district = %s
         WHERE id = %s
-        """, (name, client_name, scale, start_date, location, sales_person, stage, owner, project_id))
+        """, (name, client_name, scale, start_date, sales_person, stage, owner, province, city, district, project_id))
 
         # 如果有更新内容，插入到 Project_progress 表
+        current_time = datetime.now().strftime('%H:%M:%S')
         if update_content_str:
-            cursor.execute("""INSERT INTO Project_progress (project_id, update_content, update_date, updated_by)
-                              VALUES (%s, %s, CURDATE(), %s)""",
-                           (project_id, update_content_str, session['user_id']))
+            cursor.execute("""INSERT INTO Project_progress (project_id, update_content, update_date, update_time, updated_by)
+                              VALUES (%s, %s, CURDATE(), %s, %s)""",
+                           (project_id, update_content_str, current_time, session['user_id']))
 
         conn.commit()
         cursor.close()
@@ -400,14 +453,17 @@ def edit_project(project_id):
     cursor.execute("SELECT * FROM Projects WHERE id = %s", (project_id,))
     project = cursor.fetchone()
 
-    users = []
-    cursor.execute("SELECT id, username FROM Users")
-    users = cursor.fetchall()
+    # 获取项目负责人的用户名
+    if project['owner']:
+        cursor.execute("SELECT username FROM Users WHERE id = %s", (project['owner'],))
+        owner_user = cursor.fetchone()
+        if owner_user:
+            project['owner_username'] = owner_user['username']
 
     cursor.close()
     conn.close()
 
-    return render_template('edit_project.html', project=project, users=users)
+    return render_template('edit_project.html', project=project)
 
 
 @app.route('/delete_project/<int:project_id>', methods=['POST'])
@@ -696,6 +752,7 @@ def search_by_date():
                            next_month=next_month_date.strftime('%Y-%m-%d'),
                            today=today)
 
+
 @app.route('/statistics')
 def statistics():
     if 'user_id' not in session:
@@ -704,12 +761,12 @@ def statistics():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
 
-    # 查询各省份项目金额统计
+    # 查询各省份项目金额统计 (使用province字段)
     cursor.execute("""
-        SELECT location as province, SUM(scale) as total_scale
+        SELECT province, SUM(scale) as total_scale
         FROM Projects 
-        WHERE is_deleted = FALSE
-        GROUP BY location
+        WHERE is_deleted = FALSE AND province IS NOT NULL AND province != ''
+        GROUP BY province
         ORDER BY total_scale DESC
     """)
     province_data = cursor.fetchall()
@@ -754,7 +811,7 @@ def statistics():
         WHERE is_deleted = FALSE
         GROUP BY 
             CASE 
-                WHEN scale < 100 THEN '小型项目 (<100万)'
+                WHEN scale < 100 THEN '小型项目 (小雨100万)'
                 WHEN scale BETWEEN 100 AND 500 THEN '中型项目 (100-500万)'
                 WHEN scale BETWEEN 501 AND 1000 THEN '大型项目 (501-1000万)'
                 ELSE '超大型项目 (>1000万)'
@@ -763,6 +820,30 @@ def statistics():
     """)
     scale_distribution = cursor.fetchall()
 
+    # 新增：查询各省份项目数量统计 (使用province字段)
+    cursor.execute("""
+        SELECT province, COUNT(*) as project_count
+        FROM Projects 
+        WHERE is_deleted = FALSE AND province IS NOT NULL AND province != ''
+        GROUP BY province
+        ORDER BY project_count DESC
+    """)
+    province_count_data = cursor.fetchall()
+
+    # 新增：查询每周更新数量
+    cursor.execute("""
+        SELECT 
+            YEAR(update_date) as year,
+            WEEK(update_date, 1) as week,
+            COUNT(*) as update_count
+        FROM Project_progress 
+        WHERE update_date IS NOT NULL
+        GROUP BY YEAR(update_date), WEEK(update_date, 1)
+        ORDER BY year, week
+        LIMIT 20
+    """)
+    weekly_update_data = cursor.fetchall()
+
     cursor.close()
     conn.close()
 
@@ -770,8 +851,9 @@ def statistics():
                            province_data=province_data,
                            stage_data=stage_data,
                            monthly_data=monthly_data,
-                           scale_distribution=scale_distribution)
-
+                           scale_distribution=scale_distribution,
+                           province_count_data=province_count_data,
+                           weekly_update_data=weekly_update_data)
 
 if __name__ == '__main__':
     app.run(debug=True)
