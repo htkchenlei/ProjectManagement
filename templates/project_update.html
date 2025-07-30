@@ -24,7 +24,7 @@
                 <h5 class="card-title">历史更新</h5>
                 {% if updates %}
                     {% for update in updates %}
-                        <p class="card-text {% if update.is_important %}text-danger{% endif %}"><strong>{{ update.update_date }} @ {{ update.username }}:</strong> {{ update.update_content }}</p>
+                        <p class="card-text {% if update.is_important %}text-danger{% endif %}"><strong>{{ update.update_date }} @ {{ update.username }}:</strong> {{ update.update_content }}({{ update.update_time }})</p>
                     {% endfor %}
                 {% else %}
                     <p class="card-text">暂无更新内容</p>

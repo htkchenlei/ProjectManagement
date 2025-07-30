@@ -1,12 +1,11 @@
-from contextlib import nullcontext
-
-from flask import Flask, render_template, request, redirect, url_for, session, flash
-import mysql.connector
-from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import date, datetime, timedelta
-import pandas as pd
 from io import BytesIO
-from flask import send_file, make_response
+
+import mysql.connector
+import pandas as pd
+from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import send_file
+from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'
@@ -67,7 +66,7 @@ def login():
         conn.close()
 
         if user and check_password_hash(user['password'], password):
-            if user.get('is_enable') is 0:
+            if user.get('is_enable') == 0:
                 flash('用户已禁用，请联系管理员')
                 return redirect(url_for('login'))
             else:
@@ -238,9 +237,12 @@ def update_project(project_id):
         is_important = 'is_important' in request.form
         current_time = datetime.now().strftime('%H:%M:%S')
 
-        cursor.execute("""INSERT INTO Project_progress (project_id, update_content, update_date, update_time, updated_by, is_important)
-                          VALUES (%s, %s, CURDATE(), %s, %s, %s)""",
-                       (project_id, update_content, current_time, session['user_id'], is_important))
+        cursor.execute("""
+            INSERT INTO Project_progress (
+                project_id, update_content, update_date, update_time, updated_by, is_important
+                )
+          VALUES (%s, %s, CURDATE(), %s, %s, %s)""",
+       (project_id, update_content, current_time, session['user_id'], is_important))
 
         conn.commit()
         cursor.close()
@@ -458,7 +460,6 @@ def add_user():
 
 
 @app.route('/manage_user')
-@app.route('/manage_user')
 def manage_user():
     if 'user_id' not in session or not session['is_admin']:
         return redirect(url_for('index'))
@@ -675,7 +676,7 @@ def search_by_date():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     cursor.execute("""
-            SELECT p.name, pp.update_content, pp.update_date
+            SELECT p.name, pp.update_content, pp.update_date, pp.update_time
             FROM Projects p
             JOIN Project_progress pp ON p.id = pp.project_id
             WHERE pp.update_date = %s
