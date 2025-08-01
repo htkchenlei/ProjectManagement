@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="zh-cn">
 <head>
@@ -6,8 +7,7 @@
     <title>项目管理系统</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-       .navbar .navbar-brand {
+    <style>       .navbar .navbar-brand {
             position: absolute;
             left: 50%;
             transform: translateX(-50%);
@@ -23,9 +23,17 @@
             <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav">
+                {% if 'username' in session %}
+                <!-- 在导航栏的左侧添加高级搜索 -->
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('search_by_conditions') }}">高级搜索</a>
+                </li>
+                {% endif %}
+            </ul>
             <ul class="navbar-nav ml-auto">
                 {% if 'username' in session %}
-                <!-- 在导航栏的合适位置添加 -->
+                <!-- 在导航栏的右侧保留其他链接 -->
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('statistics') }}">统计分析</a>
                     </li>

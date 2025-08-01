@@ -703,6 +703,134 @@ def search_results():
                            show_completed=show_completed)
 
 
+@app.route('/search_by_conditions', methods=['GET', 'POST'])
+def search_by_conditions():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    # 获取所有用户和阶段信息用于下拉列表
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("SELECT id, username FROM Users")
+    users = cursor.fetchall()
+
+    # 定义阶段字典，用于前端下拉列表显示
+    stages = {
+        '1': '立项中|初步沟通',
+        '2': '立项中|提交立项申请',
+        '3': '已立项|编制解决方案',
+        '4': '已立项|编制设计方案',
+        '5': '已立项|编制招投标参数',
+        '6': '招投标|编制参数',
+        '7': '招投标|已挂网',
+        '8': '招投标|等待结果',
+        '9': '已中标|已公示',
+        '10': '已中标|已获取中标通知书',
+        '11': '已中标|签署合同',
+        '12': '已完成|转入项目实施'
+    }
+
+    search_results = []
+
+    if request.method == 'POST':
+        # 获取搜索条件
+        keywords = request.form.get('keywords', '').strip()
+        search_fields = request.form.getlist('search_fields')
+        date_from = request.form.get('date_from', '')
+        date_to = request.form.get('date_to', '')
+        owner = request.form.get('owner', '')
+        stage = request.form.get('stage', '')
+
+        # 构建查询语句
+        query = """
+        SELECT DISTINCT p.id as project_id, p.name as project_name, p.client_name, 
+               p.stage, pp.update_content, pp.update_date, pp.update_time,
+               u.username AS owner_username
+        FROM Projects p
+        LEFT JOIN Project_progress pp ON p.id = pp.project_id
+        LEFT JOIN Users u ON p.owner = u.id
+        WHERE p.is_deleted = FALSE
+        """
+
+        params = []
+
+        # 处理关键字搜索
+        if keywords and search_fields:
+            keyword_list = keywords.split()
+            keyword_conditions = []
+
+            for keyword in keyword_list:
+                field_conditions = []
+                keyword_param = f"%{keyword}%"
+
+                if 'project_name' in search_fields:
+                    field_conditions.append("p.name LIKE %s")
+                    params.append(keyword_param)
+
+                if 'client_name' in search_fields:
+                    field_conditions.append("p.client_name LIKE %s")
+                    params.append(keyword_param)
+
+                if 'update_content' in search_fields:
+                    field_conditions.append("pp.update_content LIKE %s")
+                    params.append(keyword_param)
+
+                if field_conditions:
+                    keyword_conditions.append("(" + " OR ".join(field_conditions) + ")")
+
+            if keyword_conditions:
+                query += " AND (" + " AND ".join(keyword_conditions) + ")"
+
+        # 处理日期范围
+        if date_from:
+            query += " AND pp.update_date >= %s"
+            params.append(date_from)
+
+        if date_to:
+            query += " AND pp.update_date <= %s"
+            params.append(date_to)
+
+        # 处理项目负责人
+        if owner:
+            query += " AND p.owner = %s"
+            params.append(owner)
+
+        # 处理项目阶段
+        if stage:
+            query += " AND p.stage = %s"
+            params.append(stage)
+
+        # 普通用户只能看到自己的项目
+        if not session['is_admin']:
+            query += " AND (p.sales_person = %s OR p.owner = %s)"
+            params.extend([session['user_id'], session['user_id']])
+
+        query += " ORDER BY pp.update_date DESC, pp.update_time DESC"
+
+        try:
+            cursor.execute(query, params)
+            results = cursor.fetchall()
+
+            # 处理阶段名称
+            for result in results:
+                result['stage_name'] = get_stage_name(result['stage'])
+
+            search_results = results
+
+        except mysql.connector.Error as err:
+            flash(f"搜索出错: {err}")
+
+    cursor.close()
+    conn.close()
+
+    return render_template('search_by_conditions.html',
+                           users=users,
+                           stages=stages,
+                           search_results=search_results)
+
+
+
 @app.route('/search_by_date', methods=['GET', 'POST'])
 def search_by_date():
     if 'user_id' not in session:
