@@ -202,13 +202,25 @@ def add_project():
         city = request.form.get('city', '')
         district = request.form.get('district', '')
 
+        # 获取location 字段值
+        if province:
+            if city:
+                if district:
+                    location = f"{province} {city} {district}"
+                else:
+                    location = f"{province} {city}"
+            else:
+                location = province
+        else:
+            location = ''
+
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
 
         cursor.execute("""
-        INSERT INTO Projects (name, client_name, scale, start_date, sales_person, stage, owner, province, city, district)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        """, (name, client_name, scale, start_date, sales_person, stage, owner, province, city, district))
+        INSERT INTO Projects (name, client_name, scale, start_date, location, sales_person, stage, owner, province, city, district)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (name, client_name, scale, start_date, location, sales_person, stage, owner, province, city, district))
 
         conn.commit()
         cursor.close()
@@ -474,13 +486,67 @@ def delete_project(project_id):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
 
-    cursor.execute("UPDATE Projects SET is_deleted = TRUE WHERE id = %s", (project_id,))
-    conn.commit()
+    # 获取项目名称用于确认提示
+    cursor.execute("SELECT name FROM Projects WHERE id = %s", (project_id,))
+    project = cursor.fetchone()
+
+    if project:
+        cursor.execute("UPDATE Projects SET is_deleted = TRUE WHERE id = %s", (project_id,))
+        conn.commit()
+        flash(f"项目 '{project['name']}' 已删除")
 
     cursor.close()
     conn.close()
 
     return redirect(url_for('manage_projects'))
+
+
+@app.route('/deleted_projects')
+def deleted_projects():
+    if 'user_id' not in session or not session['is_admin']:
+        return redirect(url_for('index'))
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("""
+    SELECT p.id, p.name, p.scale, p.stage
+    FROM Projects p
+    WHERE p.is_deleted = TRUE
+    """)
+    projects = cursor.fetchall()
+
+    for i, project in enumerate(projects, start=1):
+        project['serial_number'] = i
+        project['stage'] = get_stage_name(project['stage'])
+
+    cursor.close()
+    conn.close()
+
+    return render_template('deleted_projects.html', projects=projects)
+
+
+@app.route('/restore_project/<int:project_id>', methods=['POST'])
+def restore_project(project_id):
+    if 'user_id' not in session or not session['is_admin']:
+        return redirect(url_for('index'))
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    # 获取项目名称
+    cursor.execute("SELECT name FROM Projects WHERE id = %s", (project_id,))
+    project = cursor.fetchone()
+
+    if project:
+        cursor.execute("UPDATE Projects SET is_deleted = FALSE WHERE id = %s", (project_id,))
+        conn.commit()
+        flash(f"项目 '{project['name']}' 已恢复")
+
+    cursor.close()
+    conn.close()
+
+    return redirect(url_for('deleted_projects'))
 
 
 @app.route('/add_user', methods=['GET', 'POST'])
@@ -715,6 +781,13 @@ def search_by_conditions():
     cursor.execute("SELECT id, username FROM Users")
     users = cursor.fetchall()
 
+    # 获取销售人员列表
+    cursor.execute("""
+    SELECT DISTINCT sales_person FROM Projects WHERE sales_person IS NOT NULL AND sales_person != ''AND sales_person != '天喻同事'
+    """)
+    sales_persons_result = cursor.fetchall()
+    sales_persons = [person['sales_person'] for person in sales_persons_result]
+
     # 定义阶段字典，用于前端下拉列表显示
     stages = {
         '1': '立项中|初步沟通',
@@ -734,79 +807,151 @@ def search_by_conditions():
     search_results = []
 
     if request.method == 'POST':
-        # 获取搜索条件
-        keywords = request.form.get('keywords', '').strip()
-        search_fields = request.form.getlist('search_fields')
-        date_from = request.form.get('date_from', '')
-        date_to = request.form.get('date_to', '')
-        owner = request.form.get('owner', '')
-        stage = request.form.get('stage', '')
+        # 获取搜索类型
+        search_type = request.form.get('search_type', 'keyword')
 
-        # 构建查询语句
-        query = """
-        SELECT DISTINCT p.id as project_id, p.name as project_name, p.client_name, 
-               p.stage, pp.update_content, pp.update_date, pp.update_time,
-               u.username AS owner_username
-        FROM Projects p
-        LEFT JOIN Project_progress pp ON p.id = pp.project_id
-        LEFT JOIN Users u ON p.owner = u.id
-        WHERE p.is_deleted = FALSE
-        """
+        if search_type == 'keyword':
+            # 关键字搜索
+            query = """
+            SELECT DISTINCT p.id as project_id, p.name as project_name, p.client_name, 
+                   p.stage, p.scale, p.sales_person as sales_person_id, pp.update_content, 
+                   pp.update_date, pp.update_time, u.username AS owner_username
+            FROM Projects p
+            LEFT JOIN Project_progress pp ON p.id = pp.project_id
+            LEFT JOIN Users u ON p.owner = u.id
+            WHERE p.is_deleted = FALSE
+            """
 
-        params = []
+            params = []
 
-        # 处理关键字搜索
-        if keywords and search_fields:
-            keyword_list = keywords.split()
-            keyword_conditions = []
+            # 关键字搜索
+            keywords = request.form.get('keywords', '').strip()
+            date_from = request.form.get('date_from', '')
+            date_to = request.form.get('date_to', '')
 
-            for keyword in keyword_list:
-                field_conditions = []
-                keyword_param = f"%{keyword}%"
+            # 处理关键字搜索
+            if keywords:
+                keyword_list = keywords.split()
+                keyword_conditions = []
 
-                if 'project_name' in search_fields:
+                for keyword in keyword_list:
+                    field_conditions = []
+                    keyword_param = f"%{keyword}%"
+
                     field_conditions.append("p.name LIKE %s")
                     params.append(keyword_param)
 
-                if 'client_name' in search_fields:
                     field_conditions.append("p.client_name LIKE %s")
                     params.append(keyword_param)
 
-                if 'update_content' in search_fields:
                     field_conditions.append("pp.update_content LIKE %s")
                     params.append(keyword_param)
 
-                if field_conditions:
-                    keyword_conditions.append("(" + " OR ".join(field_conditions) + ")")
+                    if field_conditions:
+                        keyword_conditions.append("(" + " OR ".join(field_conditions) + ")")
 
-            if keyword_conditions:
-                query += " AND (" + " AND ".join(keyword_conditions) + ")"
+                if keyword_conditions:
+                    query += " AND (" + " AND ".join(keyword_conditions) + ")"
 
-        # 处理日期范围
-        if date_from:
-            query += " AND pp.update_date >= %s"
-            params.append(date_from)
+            # 处理日期范围
+            if date_from:
+                query += " AND pp.update_date >= %s"
+                params.append(date_from)
 
-        if date_to:
-            query += " AND pp.update_date <= %s"
-            params.append(date_to)
+            if date_to:
+                query += " AND pp.update_date <= %s"
+                params.append(date_to)
 
-        # 处理项目负责人
-        if owner:
-            query += " AND p.owner = %s"
-            params.append(owner)
+            # 普通用户只能看到自己的项目
+            if not session['is_admin']:
+                query += " AND (p.sales_person = %s OR p.owner = %s)"
+                params.extend([session['user_id'], session['user_id']])
 
-        # 处理项目阶段
-        if stage:
-            query += " AND p.stage = %s"
-            params.append(stage)
+            query += " ORDER BY pp.update_date DESC, pp.update_time DESC"
 
-        # 普通用户只能看到自己的项目
-        if not session['is_admin']:
-            query += " AND (p.sales_person = %s OR p.owner = %s)"
-            params.extend([session['user_id'], session['user_id']])
 
-        query += " ORDER BY pp.update_date DESC, pp.update_time DESC"
+        else:
+
+            # 条件搜索 - 修改查询以避免重复项目
+            query = """
+            SELECT p.id as project_id, p.name as project_name, p.client_name, 
+                   p.stage, p.scale, p.sales_person, 
+                   latest_pp.update_content, latest_pp.update_date, latest_pp.update_time,
+                   u.username AS owner_username
+            FROM Projects p
+            LEFT JOIN (
+                SELECT project_id, update_content, update_date, update_time,
+                       ROW_NUMBER() OVER (PARTITION BY project_id ORDER BY update_date DESC, update_time DESC) as rn
+                FROM Project_progress
+            ) latest_pp ON p.id = latest_pp.project_id AND latest_pp.rn = 1
+            LEFT JOIN Users u ON p.owner = u.id
+            WHERE p.is_deleted = FALSE
+            """
+
+            params = []
+
+            # 条件搜索
+            owner = request.form.get('owner', '')
+            stage = request.form.get('stage', '')
+            sales_person = request.form.get('sales_person', '')
+            amount_range = request.form.get('amount_range', '')
+
+            # 处理项目负责人
+            if owner:
+                query += " AND p.owner = %s"
+                params.append(owner)
+
+            # 处理销售人员
+            if sales_person:
+                query += " AND p.sales_person = %s"
+                params.append(sales_person)
+
+            # 处理项目阶段
+            if stage:
+                if stage == '1':
+                    # 立项中相关的阶段ID: 1, 2
+                    query += " AND p.stage IN (1, 2)"
+                elif stage == '2':
+                    # 已立项相关的阶段ID: 3, 4, 5
+                    query += " AND p.stage IN (3, 4, 5)"
+                elif stage == '3':
+                    # 招投标相关的阶段ID: 6, 7, 8
+                    query += " AND p.stage IN (6, 7, 8)"
+                elif stage == '4':
+                    # 已中标相关的阶段ID: 9, 10, 11
+                    query += " AND p.stage IN (9, 10, 11)"
+                elif stage == '5':
+                    # 已完成相关的阶段ID: 12
+                    query += " AND p.stage = 12"
+                else:
+                    # 如果是具体的阶段ID，则直接匹配
+                    query += " AND p.stage = %s"
+                    params.append(stage)
+
+            # 处理金额范围 (单位: 万元)
+            if amount_range:
+                if amount_range == '0-100':
+                    query += " AND p.scale >= %s AND p.scale < %s"
+                    params.extend([0, 100])
+
+                elif amount_range == '100-500':
+                    query += " AND p.scale >= %s AND p.scale < %s"
+                    params.extend([100, 500])
+
+                elif amount_range == '500-1000':
+                    query += " AND p.scale >= %s AND p.scale < %s"
+                    params.extend([500, 1000])
+
+                elif amount_range == '1000-':
+                    query += " AND p.scale >= %s"
+                    params.append(1000)
+
+            # 普通用户只能看到自己的项目
+            if not session['is_admin']:
+                query += " AND (p.sales_person = %s OR p.owner = %s)"
+                params.extend([session['user_id'], session['user_id']])
+
+            query += " ORDER BY latest_pp.update_date DESC, latest_pp.update_time DESC"
 
         try:
             cursor.execute(query, params)
@@ -826,6 +971,7 @@ def search_by_conditions():
 
     return render_template('search_by_conditions.html',
                            users=users,
+                           sales_persons=sales_persons,
                            stages=stages,
                            search_results=search_results)
 
@@ -899,19 +1045,29 @@ def statistics():
     """)
     province_data = cursor.fetchall()
 
-    # 查询各阶段项目数量统计
-    cursor.execute("""
-        SELECT stage, COUNT(*) as project_count
-        FROM Projects 
-        WHERE is_deleted = FALSE
-        GROUP BY stage
-        ORDER BY project_count DESC
-    """)
-    stage_data = cursor.fetchall()
+    # 查询各阶段项目数量统计（按新分类）
+    stage_categories = {
+        '立项中': [1, 2],
+        '已立项': [3, 4, 5],
+        '招投标': [6, 7, 8],
+        '已中标': [9, 10, 11],
+        '已完成': [12]
+    }
 
-    # 转换阶段ID为名称
-    for item in stage_data:
-        item['stage_name'] = get_stage_name(item['stage'])
+    stage_data = []
+    for category, stage_ids in stage_categories.items():
+        format_strings = ','.join(['%s'] * len(stage_ids))
+        query = f"""
+            SELECT COUNT(*) as project_count
+            FROM Projects 
+            WHERE is_deleted = FALSE AND stage IN ({format_strings})
+        """
+        cursor.execute(query, tuple(stage_ids))
+        result = cursor.fetchone()
+        stage_data.append({
+            'stage_name': category,
+            'project_count': result['project_count']
+        })
 
     # 查询每月新增项目数量
     cursor.execute("""
@@ -982,6 +1138,7 @@ def statistics():
                            scale_distribution=scale_distribution,
                            province_count_data=province_count_data,
                            weekly_update_data=weekly_update_data)
+
 
 if __name__ == '__main__':
     app.run(debug=True)

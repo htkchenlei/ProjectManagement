@@ -25,6 +25,25 @@
                     <label for="start_date">开始日期:</label>
                     <input type="date" class="form-control" id="start_date" name="start_date" value="{{ today }}" required>
                 </div>
+
+                <div class="form-group">
+                    <label for="stage">项目阶段:</label>
+                    <select class="form-control" id="stage" name="stage" required>
+                        <option value="">请选择阶段</option>
+                        <option value="1">立项中|初步沟通</option>
+                        <option value="2">立项中|提交立项申请</option>
+                        <option value="3">已立项|编制解决方案</option>
+                        <option value="4">已立项|编制设计方案</option>
+                        <option value="5">已立项|编制招投标参数</option>
+                        <option value="6">招投标|编制参数</option>
+                        <option value="7">招投标|已挂网</option>
+                        <option value="8">招投标|等待结果</option>
+                        <option value="9">已中标|已公示</option>
+                        <option value="10">已中标|已获取中标通知书</option>
+                        <option value="11">已中标|签署合同</option>
+                        <option value="12">已完成|转入项目实施</option>
+                    </select>
+                </div>
             </div>
             
             <div class="col-md-6">
@@ -46,12 +65,7 @@
 
                 <div class="form-group">
                     <label for="sales_person">销售负责人:</label>
-                    <select class="form-control" id="sales_person" name="sales_person" required>
-                        <option value="">请选择销售</option>
-                        {% for user in users %}
-                        <option value="{{ user.id }}">{{ user.username }}</option>
-                        {% endfor %}
-                    </select>
+                    <input type="text" class="form-control" id="sales_person" name="sales_person" required>
                 </div>
 
                 <div class="form-group">
@@ -64,29 +78,13 @@
                     </select>
                 </div>
 
-                <div class="form-group">
-                    <label for="stage">项目阶段:</label>
-                    <select class="form-control" id="stage" name="stage" required>
-                        <option value="">请选择阶段</option>
-                        <option value="1">立项中|初步沟通</option>
-                        <option value="2">立项中|提交立项申请</option>
-                        <option value="3">已立项|编制解决方案</option>
-                        <option value="4">已立项|编制设计方案</option>
-                        <option value="5">已立项|编制招投标参数</option>
-                        <option value="6">招投标|编制参数</option>
-                        <option value="7">招投标|已挂网</option>
-                        <option value="8">招投标|等待结果</option>
-                        <option value="9">已中标|已公示</option>
-                        <option value="10">已中标|已获取中标通知书</option>
-                        <option value="11">已中标|签署合同</option>
-                        <option value="12">已完成|转入项目实施</option>
-                    </select>
-                </div>
             </div>
         </div>
 
-        <button type="submit" class="btn btn-primary">创建项目</button>
-        <a href="{{ url_for('index') }}" class="btn btn-secondary">取消</a>
+        <div class="d-flex justify-content-center mt-3">
+            <button type="submit" class="btn btn-primary">创建项目</button>
+            <a href="{{ url_for('index') }}" class="btn btn-secondary">取消</a>
+        </div>
     </form>
 </div>
 {% endblock %}
