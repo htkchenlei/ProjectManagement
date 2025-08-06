@@ -150,9 +150,23 @@ def index():
     cursor.execute(query, params)
     projects = cursor.fetchall()
 
-    for i, project in enumerate(projects, start=(page - 1)*per_page + 1):
+    for i, project in enumerate(projects, start=(page - 1) * per_page + 1):
         project['serial_number'] = i
         project['stage'] = get_stage_name(project['stage'])
+
+        # 只对非"已完成|转入项目实施"阶段的项目计算未更新天数
+        if project['stage'] != '已完成|转入项目实施':
+            # 计算距离上次更新的天数
+            if project['update_date']:
+                if isinstance(project['update_date'], datetime):
+                    project['days_since_update'] = (datetime.now().date() - project['update_date'].date()).days
+                else:  # 如果是 date 类型
+                    project['days_since_update'] = (date.today() - project['update_date']).days
+            else:
+                project['days_since_update'] = None
+        else:
+            # 对于已完成的项目，不需要计算未更新天数
+            project['days_since_update'] = None
 
     cursor.close()
     conn.close()
