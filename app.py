@@ -94,7 +94,7 @@ def index():
     if 'user_id' not in session:
         return redirect(url_for('login'))
     if session['is_admin']:
-        return redirect(url_for('manage_projects'))
+        return redirect(url_for('admin'))
 
     show_completed = request.args.get('show_completed', 'true') == 'true'
     page = request.args.get('page', 1, type=int)  # 获取当前页码，默认第一页
@@ -335,8 +335,8 @@ def project_details(project_id):
     return render_template('project_details.html', project_details=project_details, updates=updates)
 
 
-@app.route('/manage_projects')
-def manage_projects():
+@app.route('/admin')
+def admin():
     if 'user_id' not in session or not session['is_admin']:
         return redirect(url_for('index'))
 
