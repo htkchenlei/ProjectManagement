@@ -3,7 +3,7 @@ from io import BytesIO
 
 import mysql.connector
 import pandas as pd
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from flask import send_file
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -32,7 +32,8 @@ def get_stage_name(stage_id):
         '9': '已中标|已公示',
         '10': '已中标|已获取中标通知书',
         '11': '已中标|签署合同',
-        '12': '已完成|转入项目实施'
+        '12': '已完成|转入项目实施',
+        '13': '已完成|项目结束'
      }
 
     return dict.get(stage_id, '未知阶段')
@@ -131,7 +132,7 @@ def index():
     ) latest_updates ON p.id = latest_updates.project_id
     LEFT JOIN Project_progress pp ON pp.id = latest_updates.max_id
     LEFT JOIN Users u ON p.owner = u.id
-    WHERE p.is_deleted = FALSE AND (p.stage != '12' OR %s)
+    WHERE p.is_deleted = FALSE AND (p.stage != '12' OR p.stage != '13' OR %s)
     """
 
     params = [show_completed]
@@ -202,6 +203,9 @@ def add_project():
 
     today = date.today().isoformat()
 
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
     if request.method == 'POST':
         name = request.form['name']
         client_name = request.form['client_name']
@@ -228,13 +232,23 @@ def add_project():
         else:
             location = ''
 
-        conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
 
+        # 插入项目信息
         cursor.execute("""
-        INSERT INTO Projects (name, client_name, scale, start_date, location, sales_person, stage, owner, province, city, district)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        """, (name, client_name, scale, start_date, location, sales_person, stage, owner, province, city, district))
+                INSERT INTO Projects (name, client_name, scale, start_date, location, sales_person, stage, owner, province, city, district)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """, (
+        name, client_name, scale, start_date, location, sales_person, stage, owner, province, city, district))
+
+        # 获取新插入项目的ID
+        project_id = cursor.lastrowid
+
+        # 插入"创建项目"的进度记录
+        current_time = datetime.now().strftime('%H:%M:%S')
+        cursor.execute("""
+                INSERT INTO Project_progress (project_id, update_content, update_date, update_time, updated_by, is_important)
+                VALUES (%s, %s, CURDATE(), %s, %s, %s)
+                """, (project_id, '创建项目', current_time, session['user_id'], 0))
 
         conn.commit()
         cursor.close()
@@ -242,7 +256,6 @@ def add_project():
 
         return redirect(url_for('index'))
 
-    users = []
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     cursor.execute("SELECT id, username FROM Users")
@@ -383,7 +396,7 @@ def edit_project(project_id):
         flash("项目不存在")
         cursor.close()
         conn.close()
-        return redirect(url_for('manage_projects'))
+        return redirect(url_for('index'))
 
     # 只有项目负责人或管理员可以编辑项目
     if session['user_id'] != project['owner'] and not session.get('is_admin', False):
@@ -474,7 +487,7 @@ def edit_project(project_id):
         cursor.close()
         conn.close()
 
-        return redirect(url_for('manage_projects'))
+        return redirect(url_for('index'))
 
     cursor.execute("SELECT * FROM Projects WHERE id = %s", (project_id,))
     project = cursor.fetchone()
@@ -512,7 +525,51 @@ def delete_project(project_id):
     cursor.close()
     conn.close()
 
-    return redirect(url_for('manage_projects'))
+    return redirect(url_for('admin'))
+
+
+@app.route('/get_cities')
+def get_cities():
+    province = request.args.get('province')
+    if not province:
+        return jsonify([])
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("""
+        SELECT DISTINCT city 
+        FROM Projects 
+        WHERE province = %s AND city IS NOT NULL AND city != ''
+        ORDER BY city
+    """, (province,))
+    cities = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    return jsonify(cities)
+
+
+@app.route('/get_districts')
+def get_districts():
+    province = request.args.get('province')
+    city = request.args.get('city')
+
+    if not province or not city:
+        return jsonify([])
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("""
+        SELECT DISTINCT district 
+        FROM Projects 
+        WHERE province = %s AND city = %s AND district IS NOT NULL AND district != ''
+        ORDER BY district
+    """, (province, city))
+    districts = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    return jsonify(districts)
 
 
 @app.route('/deleted_projects')
@@ -795,6 +852,9 @@ def search_by_conditions():
     cursor.execute("SELECT id, username FROM Users")
     users = cursor.fetchall()
 
+    cursor.execute("SELECT DISTINCT province FROM Projects")
+    provinces = cursor.fetchall()
+
     # 获取销售人员列表
     cursor.execute("""
     SELECT DISTINCT sales_person FROM Projects WHERE sales_person IS NOT NULL AND sales_person != ''AND sales_person != '天喻同事'
@@ -815,7 +875,8 @@ def search_by_conditions():
         '9': '已中标|已公示',
         '10': '已中标|已获取中标通知书',
         '11': '已中标|签署合同',
-        '12': '已完成|转入项目实施'
+        '12': '已完成|转入项目实施',
+        '13': '已完成|项目结束'
     }
 
     search_results = []
@@ -882,6 +943,48 @@ def search_by_conditions():
                 params.extend([session['user_id'], session['user_id']])
 
             query += " ORDER BY pp.update_date DESC, pp.update_time DESC"
+            # 在 search_by_conditions 函数中添加新的条件分支
+            # 在现有代码的条件搜索部分后添加以下代码：
+
+        elif search_type == 'location':
+            # 地理位置搜索
+            query = """
+                    SELECT p.id as project_id, p.name as project_name, p.scale, p.sales_person,p.stage
+                    FROM Projects p
+                    LEFT JOIN (
+                        SELECT project_id, update_content, update_date, update_time,
+                               ROW_NUMBER() OVER (PARTITION BY project_id ORDER BY update_date DESC, update_time DESC) as rn
+                        FROM Project_progress
+                    ) latest_pp ON p.id = latest_pp.project_id AND latest_pp.rn = 1
+                    WHERE p.is_deleted = FALSE
+                    """
+
+            params = []
+
+            # 获取地理位置参数
+            province = request.form.get('province', '')
+            city = request.form.get('city', '')
+            district = request.form.get('district', '')
+
+            # 添加地理位置筛选条件
+            if province:
+                query += " AND p.province = %s"
+                params.append(province)
+
+            if city:
+                query += " AND p.city = %s"
+                params.append(city)
+
+            if district:
+                query += " AND p.district = %s"
+                params.append(district)
+
+            # 普通用户只能看到自己的项目
+            if not session['is_admin']:
+                query += " AND (p.sales_person = %s OR p.owner = %s)"
+                params.extend([session['user_id'], session['user_id']])
+
+            query += " ORDER BY latest_pp.update_date DESC, latest_pp.update_time DESC"
 
 
         else:
@@ -935,8 +1038,8 @@ def search_by_conditions():
                     # 已中标相关的阶段ID: 9, 10, 11
                     query += " AND p.stage IN (9, 10, 11)"
                 elif stage == '5':
-                    # 已完成相关的阶段ID: 12
-                    query += " AND p.stage = 12"
+                    # 已完成相关的阶段ID: 12, 13
+                    query += " AND p.stage IN (12, 13)"
                 else:
                     # 如果是具体的阶段ID，则直接匹配
                     query += " AND p.stage = %s"
@@ -973,6 +1076,7 @@ def search_by_conditions():
 
             # 处理阶段名称
             for result in results:
+                print(result)
                 result['stage_name'] = get_stage_name(result['stage'])
 
             search_results = results
@@ -987,7 +1091,8 @@ def search_by_conditions():
                            users=users,
                            sales_persons=sales_persons,
                            stages=stages,
-                           search_results=search_results)
+                           search_results=search_results,
+                           provinces=provinces)
 
 
 
@@ -1065,7 +1170,7 @@ def statistics():
         '已立项': [3, 4, 5],
         '招投标': [6, 7, 8],
         '已中标': [9, 10, 11],
-        '已完成': [12]
+        '已完成': [12, 13]
     }
 
     stage_data = []

@@ -113,6 +113,52 @@
         </div>
     </div>
 
+    <!-- 地理位置搜索 -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">按地理位置搜索</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('search_by_conditions') }}" id="location-search-form">
+                        <input type="hidden" name="search_type" value="location">
+
+                        <div class="form-group">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <label for="province">省份：</label>
+                                    <select class="form-control" id="province" name="province">
+                                        <option value="">全部省份</option>
+                                        {% for province in provinces if province.province %}
+                                        <option value="{{ province.province }}">{{ province.province }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="city">城市：</label>
+                                    <select class="form-control" id="city" name="city">
+                                        <option value="">全部城市</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="district">行政区：</label>
+                                    <select class="form-control" id="district" name="district">
+                                        <option value="">全部区域</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group text-center">
+                            <button type="submit" class="btn btn-primary">地理位置搜索</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
     {% if search_results %}
     <div class="card mt-4">
         <div class="card-header">
@@ -129,6 +175,14 @@
                             <th style="width: 22%; text-align: center;">项目名称</th>
                             <th style="width: 45%; text-align: center;">最新更新内容</th>
                             <th style="width: 15%; text-align: center;">更新日期</th>
+                            <th style="width: 10%; text-align: center;">操作</th>
+                            {% elif request.form.search_type == 'location' %}
+                            <!-- 地理位置搜索结果表头 -->
+                            <th style="width: 8%; text-align: center;">序号</th>
+                            <th style="width: 45%; text-align: center;">项目名称</th>
+                            <th style="width: 9%; text-align: center;">金额</th>
+                            <th style="width: 18%; text-align: center;">项目阶段</th>
+                            <th style="width: 10%; text-align: center;">销售人员</th>
                             <th style="width: 10%; text-align: center;">操作</th>
                             {% else %}
                             <!-- 条件搜索结果表头 -->
@@ -155,6 +209,17 @@
                                 <a href="{{ url_for('project_details', project_id=result.project_id) }}"
                                    class="btn btn-sm btn-info">详情</a>
                             </td>
+                            {% elif request.form.search_type == 'location' %}
+                            <!-- 地理位置搜索结果显示 -->
+                             <td style="text-align: center;">{{ result.scale if result.scale else '未设置' }}</td>
+                            <td style="text-align: center;">{{ result.stage_name if result.stage_name else '未设置' }}</td>
+                            <td style="text-align: center;">
+                                {{ result.sales_person if result.sales_person else '未设置' }}
+                            </td>
+                            <td style="text-align: center;">
+                                <a href="{{ url_for('project_details', project_id=result.project_id) }}"
+                                   class="btn btn-sm btn-info">详情</a>
+                            </td>
                             {% else %}
                             <!-- 条件搜索结果显示 -->
                             <td style="text-align: center;">{{ result.scale if result.scale else '未设置' }}</td>
@@ -166,7 +231,6 @@
                                 <a href="{{ url_for('project_details', project_id=result.project_id) }}"
                                    class="btn btn-sm btn-info">详情</a>
                             </td>
-
                             {% endif %}
                         </tr>
                         {% endfor %}
@@ -182,4 +246,56 @@
         <a href="{{ url_for('index') }}" class="btn btn-secondary">返回首页</a>
     </div>
 </div>
+
+<script>
+// 地理位置联动搜索
+document.addEventListener('DOMContentLoaded', function() {
+    const provinceSelect = document.getElementById('province');
+    const citySelect = document.getElementById('city');
+    const districtSelect = document.getElementById('district');
+    const form = document.getElementById('location-search-form');
+
+    // 省份变化时更新城市选项
+    provinceSelect.addEventListener('change', function() {
+        const selectedProvince = this.value;
+        citySelect.innerHTML = '<option value="">全部城市</option>';
+        districtSelect.innerHTML = '<option value="">全部区域</option>';
+
+        if (selectedProvince) {
+            fetch(`/get_cities?province=${encodeURIComponent(selectedProvince)}`)
+                .then(response => response.json())
+                .then(cities => {
+                    cities.forEach(city => {
+                        const option = document.createElement('option');
+                        option.value = city.city;
+                        option.textContent = city.city;
+                        citySelect.appendChild(option);
+                    });
+                })
+                .catch(error => console.error('Error fetching cities:', error));
+        }
+    });
+
+    // 城市变化时更新行政区选项
+    citySelect.addEventListener('change', function() {
+        const selectedProvince = provinceSelect.value;
+        const selectedCity = this.value;
+        districtSelect.innerHTML = '<option value="">全部区域</option>';
+
+        if (selectedProvince && selectedCity) {
+            fetch(`/get_districts?province=${encodeURIComponent(selectedProvince)}&city=${encodeURIComponent(selectedCity)}`)
+                .then(response => response.json())
+                .then(districts => {
+                    districts.forEach(district => {
+                        const option = document.createElement('option');
+                        option.value = district.district;
+                        option.textContent = district.district;
+                        districtSelect.appendChild(option);
+                    });
+                })
+                .catch(error => console.error('Error fetching districts:', error));
+        }
+    });
+});
+</script>
 {% endblock %}

@@ -70,6 +70,7 @@
                         <option value="10" {% if project.stage == '10' %}selected{% endif %}>已中标|已获取中标通知书</option>
                         <option value="11" {% if project.stage == '11' %}selected{% endif %}>已中标|签署合同</option>
                         <option value="12" {% if project.stage == '12' %}selected{% endif %}>已完成|转入项目实施</option>
+                        <option value="13" {% if project.stage == '13' %}selected{% endif %}>已完成|项目结束</option>
                     </select>
                 </div>
             </div>
@@ -77,7 +78,7 @@
 
         <div class="d-flex justify-content-center mt-3">
             <button type="submit" class="btn btn-primary mr-2">保存修改</button>
-            <a href="{{ url_for('manage_projects') }}" class="btn btn-secondary">取消</a>
+            <a href="{{ url_for('project_details', project_id=project.id) }}" class="btn btn-secondary">取消</a>
         </div>
     </form>
 </div>

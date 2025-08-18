@@ -38,10 +38,6 @@
                         <option value="6">招投标|编制参数</option>
                         <option value="7">招投标|已挂网</option>
                         <option value="8">招投标|等待结果</option>
-                        <option value="9">已中标|已公示</option>
-                        <option value="10">已中标|已获取中标通知书</option>
-                        <option value="11">已中标|签署合同</option>
-                        <option value="12">已完成|转入项目实施</option>
                     </select>
                 </div>
             </div>
@@ -73,10 +69,11 @@
                     <select class="form-control" id="owner" name="owner" required>
                         <option value="">请选择负责人</option>
                         {% for user in users %}
-                        <option value="{{ user.id }}">{{ user.username }}</option>
+                        <option value="{{ user.id }}" {% if user.id == session.user_id %}selected{% endif %}>{{ user.username }}</option>
                         {% endfor %}
                     </select>
                 </div>
+
 
             </div>
         </div>
